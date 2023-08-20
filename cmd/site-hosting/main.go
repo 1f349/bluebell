@@ -3,8 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/1f349/site-hosting/config"
+	"github.com/1f349/site-hosting/serve"
 	"github.com/1f349/site-hosting/upload"
+	"github.com/MrMelon54/exit-reload"
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/afero"
 	"log"
 	"net/http"
 	"os"
@@ -32,10 +36,15 @@ func main() {
 		log.Fatal("[SiteHosting] Failed to stat storage path, does the directory exist? Error: ", err)
 	}
 
-	uploadHandler := upload.New(storageFlag)
+	storageFs := afero.NewBasePathFs(afero.NewOsFs(), storageFlag)
+	liveConf := config.New(storageFs)
+
+	uploadHandler := upload.New(storageFs, liveConf)
+	serveHandler := serve.New(storageFs, liveConf)
 
 	router := httprouter.New()
 	router.POST("/u/:site", uploadHandler.Handle)
+	router.GET("/", serveHandler.Handle)
 
 	srv := &http.Server{
 		Addr:    listenFlag,
@@ -53,13 +62,29 @@ func main() {
 		}
 	}()
 
+	exit_reload.ExitReload("SiteHosting", func() {
+
+	}, func() {
+
+	})
+
+	exitSig := make(chan struct{}, 1)
 	scReload := make(chan os.Signal, 1)
 	signal.Notify(scReload, syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case <-exitSig:
+			case <-scReload:
+			}
+		}
+	}()
 
 	// Wait for exit signal
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
+	close(exitSig)
 	fmt.Println()
 
 	// Stop server

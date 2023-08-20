@@ -4,26 +4,39 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
+	"github.com/1f349/site-hosting/config"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
-func New(storagePath string) *Handler {
-	fs := afero.NewBasePathFs(afero.NewOsFs(), storagePath)
-	return &Handler{fs}
+func New(storage afero.Fs, conf *config.Config) *Handler {
+	return &Handler{storage, conf}
 }
 
 type Handler struct {
 	storageFs afero.Fs
+	conf      *config.Config
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	site := params.ByName("site")
-	branch := req.URL.Query().Get("branch")
+	q := req.URL.Query()
+	site := q.Get("site")
+	branch := q.Get("branch")
+
+	siteConf, siteN, siteOk := h.conf.Get(site)
+	if !siteOk || siteN != len(site) || siteConf == nil {
+		http.Error(rw, "400 Bad Request", http.StatusBadRequest)
+		return
+	}
+	if "Bearer "+siteConf.Token != req.Header.Get("Authorization") {
+		http.Error(rw, "403 Forbidden", http.StatusForbidden)
+		return
+	}
 
 	fileData, fileHeader, err := req.FormFile("upload")
 	if err != nil {
@@ -47,7 +60,17 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 }
 
 func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) error {
-	storeFs := afero.NewBasePathFs(h.storageFs, filepath.Join(site, branch))
+	siteBranchPath := filepath.Join(site, branch)
+	err := h.storageFs.Rename(siteBranchPath, siteBranchPath+".old")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to save an old copy of the site: %w", err)
+	}
+
+	err = h.storageFs.MkdirAll(siteBranchPath, fs.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to make site directory: %w", err)
+	}
+	branchFs := afero.NewBasePathFs(h.storageFs, siteBranchPath)
 
 	// decompress gzip wrapper
 	gzipReader, err := gzip.NewReader(fileData)
@@ -60,18 +83,19 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	for {
 		next, err := tarReader.Next()
 		if err == io.EOF {
+			// finished reading tar, exit now
 			break
 		}
 		if err != nil {
 			return fmt.Errorf("invalid tar archive: %w", err)
 		}
 
-		err = storeFs.MkdirAll(filepath.Dir(next.Name), os.ModePerm)
+		err = branchFs.MkdirAll(filepath.Dir(next.Name), fs.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to make directory tree: %w", err)
 		}
 
-		create, err := storeFs.Create(next.Name)
+		create, err := branchFs.Create(next.Name)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: '%s': %w", next.Name, err)
 		}
