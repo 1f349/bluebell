@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/1f349/site-hosting/config"
@@ -25,6 +26,8 @@ var (
 func main() {
 	flag.StringVar(&listenFlag, "listen", "", "Address to listen on")
 	flag.StringVar(&storageFlag, "storage", "", "Path site files are stored in")
+	flag.Parse()
+
 	if listenFlag == "" {
 		log.Fatal("[SiteHosting] Missing listen flag")
 	}
@@ -54,7 +57,7 @@ func main() {
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			if err == http.ErrServerClosed {
+			if errors.Is(err, http.ErrServerClosed) {
 				log.Printf("[SiteHosting] The http server shutdown successfully\n")
 			} else {
 				log.Printf("[SiteHosting] Error trying to host the http server: %s\n", err.Error())
