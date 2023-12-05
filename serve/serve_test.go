@@ -20,7 +20,7 @@ func TestName(t *testing.T) {
 		}),
 	}
 	h.findSiteBranchSubdomain("example-com-test")
-	site, branch := h.findSiteBranch("example_com_test")
+	site, branch := h.findSiteBranch("example-com_test")
 }
 
 func TestHandler_Handle(t *testing.T) {
