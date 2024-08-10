@@ -1,7 +1,7 @@
 package serve
 
 import (
-	"github.com/1f349/site-hosting/config"
+	"github.com/1f349/bluebell/conf"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"io"
@@ -24,13 +24,13 @@ var (
 	}
 )
 
-func New(storage afero.Fs, conf *config.Config) *Handler {
-	return &Handler{storage, conf}
+func New(config conf.Conf, storage afero.Fs) *Handler {
+	return &Handler{config, storage}
 }
 
 type Handler struct {
+	conf      conf.Conf
 	storageFs afero.Fs
-	conf      *config.Config
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {

@@ -4,7 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
-	"github.com/1f349/site-hosting/config"
+	"github.com/1f349/bluebell/conf"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"io"
@@ -14,13 +14,13 @@ import (
 	"path/filepath"
 )
 
-func New(storage afero.Fs, conf *config.Config) *Handler {
+func New(storage afero.Fs) *Handler {
 	return &Handler{storage, conf}
 }
 
 type Handler struct {
 	storageFs afero.Fs
-	conf      *config.Config
+	conf      *conf.Conf
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {

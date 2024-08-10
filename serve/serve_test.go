@@ -1,13 +1,13 @@
 package serve
 
 import (
-	"github.com/1f349/site-hosting/config"
+	"github.com/1f349/bluebell/conf"
 	"github.com/spf13/afero"
 	"testing"
 )
 
-func makeConfig(f afero.Fs) (*config.Config, error) {
-	c := config.New(f)
+func makeConfig(f afero.Fs) (*conf.Conf, error) {
+	c := conf.New(f)
 	return c, c.Load()
 }
 
@@ -15,7 +15,7 @@ func TestName(t *testing.T) {
 	f := afero.NewMemMapFs()
 	h := &Handler{
 		storageFs: f,
-		conf: config.Testable([]config.SiteConf{
+		conf: conf.Testable([]conf.SiteConf{
 			{Domain: "example.com", Token: "abcd1234"},
 		}),
 	}
@@ -27,7 +27,7 @@ func TestHandler_Handle(t *testing.T) {
 	f := afero.NewMemMapFs()
 	h := &Handler{
 		storageFs: f,
-		conf:      &config.Config{},
+		conf:      &conf.Conf{},
 	}
 	h.Handle()
 }

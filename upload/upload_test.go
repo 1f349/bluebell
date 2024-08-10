@@ -3,7 +3,7 @@ package upload
 import (
 	"bytes"
 	_ "embed"
-	"github.com/1f349/site-hosting/config"
+	"github.com/1f349/bluebell/conf"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ func assertUploadedFile(t *testing.T, fs afero.Fs) {
 
 func TestHandler_Handle(t *testing.T) {
 	f := afero.NewMemMapFs()
-	conf := config.New(f)
+	conf := conf.New(f)
 	h := &Handler{f, conf}
 	create, err := f.Create("sites.yml")
 	assert.NoError(t, err)
@@ -72,7 +72,7 @@ func TestHandler_Handle(t *testing.T) {
 
 func TestHandler_extractTarGzUpload(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	conf := config.New(fs)
+	conf := conf.New(fs)
 	h := &Handler{fs, conf}
 	buffer := bytes.NewBuffer(testArchiveTarGz)
 	assert.NoError(t, h.extractTarGzUpload(buffer, "example.com", "main"))

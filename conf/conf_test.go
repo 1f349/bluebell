@@ -1,8 +1,8 @@
-package config
+package conf
 
 import (
 	_ "embed"
-	"github.com/MrMelon54/trie"
+	"github.com/mrmelon54/trie"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"sync"
@@ -28,7 +28,7 @@ func TestConfig_Load(t *testing.T) {
 }
 
 func TestConfig_loadSlice(t *testing.T) {
-	c := &Config{l: new(sync.RWMutex)}
+	c := &Conf{l: new(sync.RWMutex)}
 	c.loadSlice([]SiteConf{
 		{Domain: "example.com", Token: "abcd1234"},
 	})
@@ -38,7 +38,7 @@ func TestConfig_loadSlice(t *testing.T) {
 }
 
 func TestConfig_slugFromDomain(t *testing.T) {
-	c := &Config{}
+	c := &Conf{}
 	assert.Equal(t, "---------------", c.slugFromDomain("!\"#$%&'()*+,-./"))
 	assert.Equal(t, "0123456789", c.slugFromDomain("0123456789"))
 	assert.Equal(t, "-------", c.slugFromDomain(":;<=>?@"))
@@ -49,7 +49,7 @@ func TestConfig_slugFromDomain(t *testing.T) {
 }
 
 func FuzzConfig_slugFromDomain(f *testing.F) {
-	c := &Config{}
+	c := &Conf{}
 	f.Fuzz(func(t *testing.T, a string) {
 		b := c.slugFromDomain(a)
 		if len(a) != len(b) {
@@ -59,7 +59,7 @@ func FuzzConfig_slugFromDomain(f *testing.F) {
 }
 
 func TestConfig_Get(t *testing.T) {
-	c := &Config{l: new(sync.RWMutex), m: &trie.Trie[SiteConf]{}}
+	c := &Conf{l: new(sync.RWMutex), m: &trie.Trie[SiteConf]{}}
 	c.loadSlice([]SiteConf{
 		{Domain: "example.com", Token: "abcd1234"},
 	})

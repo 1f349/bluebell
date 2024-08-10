@@ -7,23 +7,11 @@ root = true
 [*]
 charset = utf-8
 end_of_line = lf
+indent_size = 2
+indent_style = space
 insert_final_newline = true
 
 # GO
 [*.go]
 indent_size = 2
 indent_style = tab
-
-# HTML
-[*.{htm,html}]
-indent_size = 2
-indent_style = space
-
-# GNU make
-[Makefile]
-indent_style = tab
-
-# YAML
-[*.{yaml,yml}]
-indent_size = 2
-indent_style = space
