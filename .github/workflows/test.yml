@@ -11,5 +11,5 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     - uses: actions/checkout@v4
-    - run: go build ./cmd/site-hosting/
+    - run: go build ./cmd/bluebell/
     - run: go test ./...
