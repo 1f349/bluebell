@@ -5,6 +5,7 @@ go 1.23.4
 require (
 	github.com/charmbracelet/log v0.4.0
 	github.com/cloudflare/tableflip v1.2.3
+	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mrmelon54/trie v0.0.3

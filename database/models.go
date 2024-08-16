@@ -8,6 +8,8 @@ import ()
 
 type Site struct {
 	ID     int32  `json:"id"`
+	Slug   string `json:"slug"`
 	Domain string `json:"domain"`
 	Token  string `json:"token"`
+	Enable bool   `json:"enable"`
 }

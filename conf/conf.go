@@ -1,20 +1,12 @@
 package conf
 
-import "github.com/mrmelon54/trie"
-
 type Conf struct {
 	Listen string `yaml:"listen"`
-	//fs     afero.Fs
-	//l      *sync.RWMutex
-	m *trie.Trie[SiteConf]
+	DB     string `yaml:"db"`
+	Domain string `yaml:"domain"`
 }
 
-type SiteConf struct {
-	Domain string `json:"domain"`
-	Token  string `json:"token"`
-}
-
-func (c *Conf) slugFromDomain(domain string) string {
+func SlugFromDomain(domain string) string {
 	a := []byte(domain)
 	for i := range a {
 		switch {
