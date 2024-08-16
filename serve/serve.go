@@ -1,10 +1,13 @@
 package serve
 
 import (
+	"context"
 	"github.com/1f349/bluebell/conf"
+	"github.com/1f349/bluebell/database"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -24,78 +27,59 @@ var (
 	}
 )
 
-func New(config conf.Conf, storage afero.Fs) *Handler {
-	return &Handler{config, storage}
+type sitesQueries interface {
+	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
+}
+
+func New(storage afero.Fs, db sitesQueries, domain string) *Handler {
+	return &Handler{storage, db, domain}
 }
 
 type Handler struct {
-	conf      conf.Conf
 	storageFs afero.Fs
+	db        sitesQueries
+	domain    string
 }
 
-func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	site, branch, subdomain, ok := h.findSiteBranchSubdomain(req.Host)
+func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	host, _, err := net.SplitHostPort(req.Host)
+	if err != nil {
+		http.Error(rw, "Bad Gateway", http.StatusBadGateway)
+		return
+	}
+	site, ok := strings.CutSuffix(host, "."+h.domain)
 	if !ok {
 		http.Error(rw, "Bad Gateway", http.StatusBadGateway)
 		return
 	}
+	site = conf.SlugFromDomain(site)
+	branch := req.URL.User.Username()
 	if branch == "" {
 		for _, i := range indexBranches {
-			if h.tryServePath(rw, site, i, subdomain, req.URL.Path) {
+			if h.tryServePath(rw, site, i, req.URL.Path) {
 				return
 			}
 		}
-	} else if h.tryServePath(rw, site, branch, subdomain, req.URL.Path) {
+	} else if h.tryServePath(rw, site, branch, req.URL.Path) {
 		return
 	}
 	http.Error(rw, "404 Not Found", http.StatusNotFound)
 }
 
-func (h *Handler) findSiteBranchSubdomain(host string) (site, branch, subdomain string, ok bool) {
-	var siteN int
-	siteN, site = h.findSite(host)
-	if site == "" {
-		return
-	}
-
-	if host[siteN] != '-' {
-		return
-	}
-	host = host[siteN+1:]
-
-	strings.LastIndexByte(host, '-')
-	return
-}
-
-func (h *Handler) findSite(host string) (int, string) {
-	siteVal, siteN, siteOk := h.conf.Get(host)
-	if !siteOk || siteVal == nil {
-		return -1, ""
-	}
-
-	// so I used less than or equal here that's to prevent a bug where the prefix
-	// found is longer than the string obviously that sounds impossible, and it is,
-	// but I would rather the program not crash if some other bug allows this weird
-	// event to happen
-	if siteN <= len(host) {
-		return -1, ""
-	}
-	return siteN, siteVal.Domain
-}
-
-func (h *Handler) tryServePath(rw http.ResponseWriter, site, branch, subdomain, p string) bool {
+func (h *Handler) tryServePath(rw http.ResponseWriter, site, branch, p string) bool {
 	for _, i := range indexFiles {
-		if h.tryServeFile(rw, site, branch, subdomain, i(p)) {
+		if h.tryServeFile(rw, site, branch, i(p)) {
 			return true
 		}
 	}
 	return false
 }
 
-func (h *Handler) tryServeFile(rw http.ResponseWriter, site, branch, subdomain, p string) bool {
-	// if there is a subdomain then load files from inside the subdomain folder
-	if subdomain != "" {
-		p = filepath.Join("_subdomain", subdomain, p)
+func (h *Handler) tryServeFile(rw http.ResponseWriter, site, branch, p string) bool {
+	// prevent path traversal
+	if strings.Contains(site, "..") || strings.Contains(branch, "..") || strings.Contains(p, "..") {
+		http.Error(rw, "400 Bad Request", http.StatusBadRequest)
+		return true
 	}
 	open, err := h.storageFs.Open(filepath.Join(site, branch, p))
 	switch {

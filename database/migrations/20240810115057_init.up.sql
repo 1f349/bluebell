@@ -1,6 +1,8 @@
 CREATE TABLE sites
 (
-  id     INTEGER NOT NULL PRIMARY KEY,
+  id     INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  slug   TEXT(8) NOT NULL,
   domain TEXT    NOT NULL,
-  token  TEXT    NOT NULL
+  token  TEXT    NOT NULL,
+  enable BOOL    NOT NULL
 );

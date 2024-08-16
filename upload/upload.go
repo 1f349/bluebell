@@ -3,8 +3,10 @@ package upload
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
-	"github.com/1f349/bluebell/conf"
+	"github.com/1f349/bluebell/database"
+	"github.com/dustin/go-humanize"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"io"
@@ -12,25 +14,35 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-func New(storage afero.Fs) *Handler {
-	return &Handler{storage, conf}
+type sitesQueries interface {
+	GetSiteBySlug(ctx context.Context, slug string) (database.Site, error)
+	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
 }
+
+func New(storage afero.Fs, db sitesQueries) *Handler {
+	return &Handler{storage, db}
+}
+
+const maxFileSize = 1 * humanize.GiByte
 
 type Handler struct {
 	storageFs afero.Fs
-	conf      *conf.Conf
+	db        sitesQueries
 }
 
-func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
+func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	q := req.URL.Query()
 	site := q.Get("site")
 	branch := q.Get("branch")
 
-	siteConf, siteN, siteOk := h.conf.Get(site)
-	if !siteOk || siteN != len(site) || siteConf == nil {
-		http.Error(rw, "400 Bad Request", http.StatusBadRequest)
+	site = strings.ReplaceAll(site, "*", "")
+
+	siteConf, err := h.db.GetSiteByDomain(req.Context(), "*"+site)
+	if err != nil {
+		http.Error(rw, "", http.StatusNotFound)
 		return
 	}
 	if "Bearer "+siteConf.Token != req.Header.Get("Authorization") {
@@ -45,7 +57,7 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 	}
 
 	// if file is bigger than 1GiB
-	if fileHeader.Size > 1074000000 {
+	if fileHeader.Size > maxFileSize {
 		http.Error(rw, "File too big", http.StatusBadRequest)
 		return
 	}

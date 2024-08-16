@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"github.com/1f349/bluebell"
 	"github.com/1f349/bluebell/conf"
 	"github.com/1f349/bluebell/logger"
 	"github.com/1f349/bluebell/serve"
 	"github.com/1f349/bluebell/upload"
 	"github.com/charmbracelet/log"
 	"github.com/cloudflare/tableflip"
+	"github.com/dustin/go-humanize"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
@@ -86,18 +88,30 @@ func main() {
 		}
 	}()
 
+	db, err := bluebell.InitDB(config.DB)
+	if err != nil {
+		logger.Logger.Fatal("Failed to open database", "err", err)
+		return
+	}
+
 	// Listen must be called before Ready
 	ln, err := upg.Listen("tcp", config.Listen)
 	if err != nil {
 		logger.Logger.Fatal("Listen failed", "err", err)
 	}
 
-	uploadHandler := upload.New(sitesFs)
-	serveHandler := serve.New(sitesFs)
+	uploadHandler := upload.New(sitesFs, db)
+	serveHandler := serve.New(sitesFs, db, config.Domain)
 
 	router := httprouter.New()
 	router.POST("/u/:site", uploadHandler.Handle)
 	router.GET("/*filepath", serveHandler.Handle)
+	router.POST("/sites/:host", func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	})
+	router.DELETE("/sites/:host", func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
+
+	})
 
 	server := &http.Server{
 		Handler:           router,
@@ -105,7 +119,7 @@ func main() {
 		ReadHeaderTimeout: 1 * time.Minute,
 		WriteTimeout:      1 * time.Minute,
 		IdleTimeout:       1 * time.Minute,
-		MaxHeaderBytes:    4_096_000,
+		MaxHeaderBytes:    4 * humanize.MiByte,
 	}
 	logger.Logger.Info("HTTP server listening on", "addr", config.Listen)
 	go func() {
