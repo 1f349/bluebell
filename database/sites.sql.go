@@ -7,37 +7,47 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
-const deleteDomain = `-- name: DeleteDomain :exec
-UPDATE sites
-SET enable = false
-WHERE domain = ?
+const addSiteDomain = `-- name: AddSiteDomain :exec
+INSERT INTO sites (domain, token)
+VALUES (?, ?)
 `
 
-func (q *Queries) DeleteDomain(ctx context.Context, domain string) error {
-	_, err := q.db.ExecContext(ctx, deleteDomain, domain)
-	return err
-}
-
-const enableDomain = `-- name: EnableDomain :exec
-INSERT INTO sites (slug, domain, token)
-VALUES (?, ?, ?)
-`
-
-type EnableDomainParams struct {
-	Slug   string `json:"slug"`
+type AddSiteDomainParams struct {
 	Domain string `json:"domain"`
 	Token  string `json:"token"`
 }
 
-func (q *Queries) EnableDomain(ctx context.Context, arg EnableDomainParams) error {
-	_, err := q.db.ExecContext(ctx, enableDomain, arg.Slug, arg.Domain, arg.Token)
+func (q *Queries) AddSiteDomain(ctx context.Context, arg AddSiteDomainParams) error {
+	_, err := q.db.ExecContext(ctx, addSiteDomain, arg.Domain, arg.Token)
 	return err
 }
 
+const getLastUpdatedByDomainBranch = `-- name: GetLastUpdatedByDomainBranch :one
+SELECT last_update
+FROM branches
+WHERE domain = ?
+  AND branch = ?
+  AND enable = true
+LIMIT 1
+`
+
+type GetLastUpdatedByDomainBranchParams struct {
+	Domain string `json:"domain"`
+	Branch string `json:"branch"`
+}
+
+func (q *Queries) GetLastUpdatedByDomainBranch(ctx context.Context, arg GetLastUpdatedByDomainBranchParams) (time.Time, error) {
+	row := q.db.QueryRowContext(ctx, getLastUpdatedByDomainBranch, arg.Domain, arg.Branch)
+	var last_update time.Time
+	err := row.Scan(&last_update)
+	return last_update, err
+}
+
 const getSiteByDomain = `-- name: GetSiteByDomain :one
-SELECT id, slug, domain, token, enable
+SELECT id, domain, token
 FROM sites
 WHERE domain = ?
 LIMIT 1
@@ -46,32 +56,24 @@ LIMIT 1
 func (q *Queries) GetSiteByDomain(ctx context.Context, domain string) (Site, error) {
 	row := q.db.QueryRowContext(ctx, getSiteByDomain, domain)
 	var i Site
-	err := row.Scan(
-		&i.ID,
-		&i.Slug,
-		&i.Domain,
-		&i.Token,
-		&i.Enable,
-	)
+	err := row.Scan(&i.ID, &i.Domain, &i.Token)
 	return i, err
 }
 
-const getSiteBySlug = `-- name: GetSiteBySlug :one
-SELECT id, slug, domain, token, enable
-FROM sites
-WHERE slug = ?
-LIMIT 1
+const setDomainBranchEnabled = `-- name: SetDomainBranchEnabled :exec
+UPDATE branches
+SET enable = ?
+WHERE domain = ?
+  AND branch = ?
 `
 
-func (q *Queries) GetSiteBySlug(ctx context.Context, slug string) (Site, error) {
-	row := q.db.QueryRowContext(ctx, getSiteBySlug, slug)
-	var i Site
-	err := row.Scan(
-		&i.ID,
-		&i.Slug,
-		&i.Domain,
-		&i.Token,
-		&i.Enable,
-	)
-	return i, err
+type SetDomainBranchEnabledParams struct {
+	Enable bool   `json:"enable"`
+	Domain string `json:"domain"`
+	Branch string `json:"branch"`
+}
+
+func (q *Queries) SetDomainBranchEnabled(ctx context.Context, arg SetDomainBranchEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, setDomainBranchEnabled, arg.Enable, arg.Domain, arg.Branch)
+	return err
 }

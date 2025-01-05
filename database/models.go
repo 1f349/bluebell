@@ -4,12 +4,20 @@
 
 package database
 
-import ()
+import (
+	"time"
+)
+
+type Branch struct {
+	ID         int64     `json:"id"`
+	Domain     string    `json:"domain"`
+	Branch     string    `json:"branch"`
+	LastUpdate time.Time `json:"last_update"`
+	Enable     bool      `json:"enable"`
+}
 
 type Site struct {
-	ID     int32  `json:"id"`
-	Slug   string `json:"slug"`
+	ID     int64  `json:"id"`
 	Domain string `json:"domain"`
 	Token  string `json:"token"`
-	Enable bool   `json:"enable"`
 }

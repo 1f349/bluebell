@@ -1,20 +1,23 @@
--- name: GetSiteBySlug :one
-SELECT *
-FROM sites
-WHERE slug = ?
-LIMIT 1;
-
 -- name: GetSiteByDomain :one
 SELECT *
 FROM sites
 WHERE domain = ?
 LIMIT 1;
 
--- name: EnableDomain :exec
-INSERT INTO sites (slug, domain, token)
-VALUES (?, ?, ?);
+-- name: GetLastUpdatedByDomainBranch :one
+SELECT last_update
+FROM branches
+WHERE domain = ?
+  AND branch = ?
+  AND enable = true
+LIMIT 1;
 
--- name: DeleteDomain :exec
-UPDATE sites
-SET enable = false
-WHERE domain = ?;
+-- name: AddSiteDomain :exec
+INSERT INTO sites (domain, token)
+VALUES (?, ?);
+
+-- name: SetDomainBranchEnabled :exec
+UPDATE branches
+SET enable = ?
+WHERE domain = ?
+  AND branch = ?;

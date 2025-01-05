@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"github.com/1f349/bluebell/database"
 	"github.com/dustin/go-humanize"
@@ -12,13 +14,17 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
+var indexBranches = []string{
+	"main",
+	"master",
+}
+
 type sitesQueries interface {
-	GetSiteBySlug(ctx context.Context, slug string) (database.Site, error)
 	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
 }
 
@@ -33,19 +39,19 @@ type Handler struct {
 	db        sitesQueries
 }
 
-func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	q := req.URL.Query()
-	site := q.Get("site")
-	branch := q.Get("branch")
+func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	site := params.ByName("site")
+	branch := params.ByName("branch")
 
 	site = strings.ReplaceAll(site, "*", "")
 
-	siteConf, err := h.db.GetSiteByDomain(req.Context(), "*"+site)
+	siteConf, err := h.db.GetSiteByDomain(req.Context(), site)
 	if err != nil {
 		http.Error(rw, "", http.StatusNotFound)
 		return
 	}
-	if "Bearer "+siteConf.Token != req.Header.Get("Authorization") {
+	token, ok := strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
+	if !ok || subtle.ConstantTimeCompare([]byte(token), []byte(siteConf.Token)) == 0 {
 		http.Error(rw, "403 Forbidden", http.StatusForbidden)
 		return
 	}
@@ -58,7 +64,7 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter
 
 	// if file is bigger than 1GiB
 	if fileHeader.Size > maxFileSize {
-		http.Error(rw, "File too big", http.StatusBadRequest)
+		http.Error(rw, "File too big", http.StatusInsufficientStorage)
 		return
 	}
 
@@ -72,9 +78,18 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter
 }
 
 func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) error {
-	siteBranchPath := filepath.Join(site, branch)
-	err := h.storageFs.Rename(siteBranchPath, siteBranchPath+".old")
-	if err != nil && !os.IsNotExist(err) {
+	if slices.Contains(indexBranches, branch) {
+		branch = ""
+	}
+	siteBranchPath := filepath.Join(site, "@"+branch)
+
+	err := h.storageFs.RemoveAll(siteBranchPath + ".old")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
+	}
+
+	err = h.storageFs.Rename(siteBranchPath, siteBranchPath+".old")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to save an old copy of the site: %w", err)
 	}
 

@@ -2,90 +2,172 @@ package serve
 
 import (
 	"context"
-	"github.com/1f349/bluebell/conf"
+	_ "embed"
 	"github.com/1f349/bluebell/database"
-	"github.com/julienschmidt/httprouter"
+	"github.com/1f349/bluebell/logger"
 	"github.com/spf13/afero"
-	"io"
+	"html/template"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
-	indexBranches = []string{
-		"main",
-		"master",
-	}
+	//go:embed missing-branch.go.html
+	missingBranchHtml     string
+	missingBranchTemplate = template.Must(template.New("missingBranchHtml").Parse(missingBranchHtml))
+
 	indexFiles = []func(p string) string{
-		func(p string) string { return path.Join(p, "index.html") },
-		func(p string) string { return p + ".html" },
 		func(p string) string { return p },
+		func(p string) string { return p + ".html" },
+		func(p string) string { return path.Join(p, "index.html") },
 	}
 )
 
-type sitesQueries interface {
-	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
+func isInvalidIndexPath(p string) bool {
+	switch p {
+	case ".", ".html":
+		return true
+	}
+	return false
 }
 
-func New(storage afero.Fs, db sitesQueries, domain string) *Handler {
-	return &Handler{storage, db, domain}
+const (
+	BetaCookieName = "__bluebell-site-beta"
+	BetaSwitchPath = "/__bluebell-switch-beta"
+	BetaExpiry     = 24 * time.Hour
+
+	NoCacheQuery = "/?__bluebell-no-cache="
+)
+
+type sitesQueries interface {
+	GetLastUpdatedByDomainBranch(ctx context.Context, params database.GetLastUpdatedByDomainBranchParams) (time.Time, error)
+}
+
+func New(storage afero.Fs, db sitesQueries) *Handler {
+	return &Handler{storage, db}
 }
 
 type Handler struct {
 	storageFs afero.Fs
 	db        sitesQueries
-	domain    string
 }
 
-func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func cacheBuster(rw http.ResponseWriter, req *http.Request) {
+	header := rw.Header()
+	header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	header.Set("Pragma", "no-cache")
+	header.Set("Expires", "0")
+	http.Redirect(rw, req, NoCacheQuery+strconv.FormatInt(time.Now().Unix(), 16), http.StatusFound)
+}
+
+func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	host, _, err := net.SplitHostPort(req.Host)
 	if err != nil {
-		http.Error(rw, "Bad Gateway", http.StatusBadGateway)
-		return
+		host = req.Host
 	}
-	site, ok := strings.CutSuffix(host, "."+h.domain)
-	if !ok {
-		http.Error(rw, "Bad Gateway", http.StatusBadGateway)
-		return
-	}
-	site = conf.SlugFromDomain(site)
-	branch := req.URL.User.Username()
-	if branch == "" {
-		for _, i := range indexBranches {
-			if h.tryServePath(rw, site, i, req.URL.Path) {
-				return
-			}
+
+	// detect beta switch path
+	if req.URL.Path == BetaSwitchPath {
+		q := req.URL.Query()
+
+		// init cookie
+		baseCookie := &http.Cookie{
+			Name:     BetaCookieName,
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 		}
-	} else if h.tryServePath(rw, site, branch, req.URL.Path) {
+
+		// reset beta
+		if q.Has("reset") {
+			baseCookie.MaxAge = -1
+			http.SetCookie(rw, baseCookie)
+			cacheBuster(rw, req)
+			return
+		}
+
+		// set beta branch
+		baseCookie.Value = q.Get("branch")
+		baseCookie.Expires = time.Now().Add(BetaExpiry)
+		http.SetCookie(rw, baseCookie)
+		cacheBuster(rw, req)
 		return
 	}
+
+	// read the beta cookie
+	branchCookie, _ := req.Cookie(BetaCookieName)
+	var branch = "@"
+	if branchCookie != nil {
+		branch += branchCookie.Value
+	}
+
+	updated, err := h.db.GetLastUpdatedByDomainBranch(req.Context(), database.GetLastUpdatedByDomainBranchParams{Domain: host, Branch: branch})
+	if err != nil {
+		rw.WriteHeader(http.StatusMisdirectedRequest)
+		_ = missingBranchTemplate.Execute(rw, struct{ Host string }{host})
+		logger.Logger.Debug("Branch is not available", "host", host, "branch", branch, "err", err)
+		return
+	}
+
+	if h.tryServePath(rw, req, host, branch, updated, req.URL.Path) {
+		return // page has been served
+	}
+
+	// tryServePath found no matching files
 	http.Error(rw, "404 Not Found", http.StatusNotFound)
+	logger.Logger.Debug("No matching file was found")
 }
 
-func (h *Handler) tryServePath(rw http.ResponseWriter, site, branch, p string) bool {
+// tryServePath attempts to find a valid path from the indexFiles list
+func (h *Handler) tryServePath(rw http.ResponseWriter, req *http.Request, site, branch string, updated time.Time, p string) bool {
 	for _, i := range indexFiles {
-		if h.tryServeFile(rw, site, branch, i(p)) {
+		// skip invalid paths "." and ".html"
+		p2 := path.Clean(i(p))
+		if isInvalidIndexPath(p2) {
+			continue
+		}
+
+		if h.tryServeFile(rw, req, site, branch, updated, p2) {
 			return true
 		}
 	}
 	return false
 }
 
-func (h *Handler) tryServeFile(rw http.ResponseWriter, site, branch, p string) bool {
+// tryServeFile attempts to serve the content of a file if the file can be found
+//
+// If a matching file can be found or an internal error has occurred then the return value is true to prevent further changes to the response.
+//
+// If branch == "@" then time based caching is enabled for subsequent page loads. Otherwise, time based caching is disabled to prevent stale beta content from being cached.
+func (h *Handler) tryServeFile(rw http.ResponseWriter, req *http.Request, site, branch string, updated time.Time, p string) bool {
 	// prevent path traversal
 	if strings.Contains(site, "..") || strings.Contains(branch, "..") || strings.Contains(p, "..") {
 		http.Error(rw, "400 Bad Request", http.StatusBadRequest)
 		return true
 	}
-	open, err := h.storageFs.Open(filepath.Join(site, branch, p))
+
+	servePath := filepath.Join(site, branch, p)
+	logger.Logger.Debug("Serving file", "full", servePath, "site", site, "branch", branch, "file", p)
+	open, err := h.storageFs.Open(servePath)
 	switch {
 	case err == nil:
-		rw.WriteHeader(http.StatusOK)
-		_, _ = io.Copy(rw, open)
+		// ignore directories
+		stat, err := open.Stat()
+		if err != nil || stat.IsDir() {
+			return false
+		}
+
+		// disable timed cache for non-main branches
+		if branch != "@" {
+			updated = time.Time{}
+		}
+		http.ServeContent(rw, req, p, updated, open)
 	case os.IsNotExist(err):
 		// check next path
 		return false

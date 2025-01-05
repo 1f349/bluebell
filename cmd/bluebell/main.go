@@ -88,24 +88,28 @@ func main() {
 		}
 	}()
 
-	db, err := bluebell.InitDB(config.DB)
+	db, err := bluebell.InitDB(filepath.Join(wd, config.DB))
 	if err != nil {
 		logger.Logger.Fatal("Failed to open database", "err", err)
 		return
 	}
 
 	// Listen must be called before Ready
-	ln, err := upg.Listen("tcp", config.Listen)
+	lnHttp, err := upg.Listen("tcp", config.Listen.Http)
+	if err != nil {
+		logger.Logger.Fatal("Listen failed", "err", err)
+	}
+
+	lnApi, err := upg.Listen("tcp", config.Listen.Api)
 	if err != nil {
 		logger.Logger.Fatal("Listen failed", "err", err)
 	}
 
 	uploadHandler := upload.New(sitesFs, db)
-	serveHandler := serve.New(sitesFs, db, config.Domain)
+	serveHandler := serve.New(sitesFs, db)
 
 	router := httprouter.New()
-	router.POST("/u/:site", uploadHandler.Handle)
-	router.GET("/*filepath", serveHandler.Handle)
+	router.POST("/u/:site/:branch", uploadHandler.Handle)
 	router.POST("/sites/:host", func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 
 	})
@@ -113,7 +117,23 @@ func main() {
 
 	})
 
-	server := &http.Server{
+	serverHttp := &http.Server{
+		Handler:           serveHandler,
+		ReadTimeout:       1 * time.Minute,
+		ReadHeaderTimeout: 1 * time.Minute,
+		WriteTimeout:      1 * time.Minute,
+		IdleTimeout:       1 * time.Minute,
+		MaxHeaderBytes:    4 * humanize.MiByte,
+	}
+	logger.Logger.Info("HTTP server listening on", "addr", config.Listen.Http)
+	go func() {
+		err := serverHttp.Serve(lnHttp)
+		if !errors.Is(err, http.ErrServerClosed) {
+			logger.Logger.Fatal("Serve failed", "err", err)
+		}
+	}()
+
+	serverApi := &http.Server{
 		Handler:           router,
 		ReadTimeout:       1 * time.Minute,
 		ReadHeaderTimeout: 1 * time.Minute,
@@ -121,11 +141,11 @@ func main() {
 		IdleTimeout:       1 * time.Minute,
 		MaxHeaderBytes:    4 * humanize.MiByte,
 	}
-	logger.Logger.Info("HTTP server listening on", "addr", config.Listen)
+	logger.Logger.Info("API server listening on", "addr", config.Listen.Api)
 	go func() {
-		err := server.Serve(ln)
+		err := serverApi.Serve(lnApi)
 		if !errors.Is(err, http.ErrServerClosed) {
-			logger.Logger.Fatal("Serve failed", "err", err)
+			logger.Logger.Fatal("API Serve failed", "err", err)
 		}
 	}()
 
@@ -140,5 +160,5 @@ func main() {
 		os.Exit(1)
 	})
 
-	server.Shutdown(context.Background())
+	serverHttp.Shutdown(context.Background())
 }
