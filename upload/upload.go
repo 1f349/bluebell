@@ -60,7 +60,7 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 		return
 	}
 
-	// if file is bigger than 1GiB
+	// if file is bigger than maxFileSize
 	if fileHeader.Size > maxFileSize {
 		http.Error(rw, "File too big", http.StatusInsufficientStorage)
 		return
