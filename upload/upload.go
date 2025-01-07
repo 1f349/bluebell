@@ -80,18 +80,19 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		branch = ""
 	}
 	siteBranchPath := filepath.Join(site, "@"+branch)
+	siteBranchOldPath := filepath.Join(site, "old@"+branch)
 
 	// try the new "old@[...]" and old "@[...].old" paths
 	err := h.storageFs.RemoveAll(siteBranchPath + ".old")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
-	err = h.storageFs.RemoveAll("old" + siteBranchPath)
+	err = h.storageFs.RemoveAll(siteBranchOldPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
 
-	err = h.storageFs.Rename(siteBranchPath, "old"+siteBranchPath)
+	err = h.storageFs.Rename(siteBranchPath, siteBranchOldPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to save an old copy of the site: %w", err)
 	}
