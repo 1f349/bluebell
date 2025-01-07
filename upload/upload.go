@@ -24,6 +24,59 @@ var indexBranches = []string{
 	"master",
 }
 
+func containsOnly(s string, f func(r rune) bool) bool {
+	for _, r := range []rune(s) {
+		if !f(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidSite(site string) bool {
+	if len(site) < 1 || site[0] == '-' {
+		return false
+	}
+	switch site[0] {
+	case '-':
+		return false
+	}
+	return containsOnly(site, func(r rune) bool {
+		return isAlphanumericOrDash(r) || r == '.'
+	})
+}
+
+func isValidBranch(branch string) bool {
+	if len(branch) < 1 {
+		return false
+	}
+	switch branch[0] {
+	case '-', '/':
+		return false
+	}
+	if branch[len(branch)-1] == '/' {
+		return false
+	}
+	return containsOnly(branch, func(r rune) bool {
+		return isAlphanumericOrDash(r) || r == '/' || r == '.'
+	})
+}
+
+func isAlphanumericOrDash(r rune) bool {
+	switch {
+	case r >= '0' && r <= '9':
+		return true
+	case r >= 'a' && r <= 'z':
+		return true
+	case r >= 'A' && r <= 'Z':
+		return true
+	case r == '-', r == '_':
+		return true
+	default:
+		return false
+	}
+}
+
 type sitesQueries interface {
 	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
 }
@@ -76,14 +129,26 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 }
 
 func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) error {
+	if !isValidSite(site) {
+		return fmt.Errorf("invalid site name: %s", site)
+	}
+	if !isValidBranch(branch) {
+		return fmt.Errorf("invalid branch name: %s", branch)
+	}
 	if slices.Contains(indexBranches, branch) {
 		branch = ""
 	}
+
+	_, err := h.db.GetSiteByDomain(context.Background(), site)
+	if err != nil {
+		return fmt.Errorf("invalid site: %w", err)
+	}
+
 	siteBranchPath := filepath.Join(site, "@"+branch)
 	siteBranchOldPath := filepath.Join(site, "old@"+branch)
 
 	// try the new "old@[...]" and old "@[...].old" paths
-	err := h.storageFs.RemoveAll(siteBranchPath + ".old")
+	err = h.storageFs.RemoveAll(siteBranchPath + ".old")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
