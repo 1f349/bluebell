@@ -43,8 +43,6 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 	site := params.ByName("site")
 	branch := params.ByName("branch")
 
-	site = strings.ReplaceAll(site, "*", "")
-
 	siteConf, err := h.db.GetSiteByDomain(req.Context(), site)
 	if err != nil {
 		http.Error(rw, "", http.StatusNotFound)
@@ -83,12 +81,17 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	}
 	siteBranchPath := filepath.Join(site, "@"+branch)
 
+	// try the new "old@[...]" and old "@[...].old" paths
 	err := h.storageFs.RemoveAll(siteBranchPath + ".old")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
+	err = h.storageFs.RemoveAll("old" + siteBranchPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
+	}
 
-	err = h.storageFs.Rename(siteBranchPath, siteBranchPath+".old")
+	err = h.storageFs.Rename(siteBranchPath, "old"+siteBranchPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to save an old copy of the site: %w", err)
 	}
