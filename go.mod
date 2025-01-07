@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/1f349/mjwt v0.4.1
+	github.com/1f349/syncmap v0.0.3
 	github.com/charmbracelet/log v0.4.0
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/dustin/go-humanize v1.0.1

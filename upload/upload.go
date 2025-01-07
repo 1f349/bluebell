@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/1f349/bluebell/database"
+	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 )
 
 var indexBranches = []string{
@@ -82,7 +84,7 @@ type sitesQueries interface {
 }
 
 func New(storage afero.Fs, db sitesQueries) *Handler {
-	return &Handler{storage, db}
+	return &Handler{storageFs: storage, db: db}
 }
 
 const maxFileSize = 1 * humanize.GiByte
@@ -90,6 +92,7 @@ const maxFileSize = 1 * humanize.GiByte
 type Handler struct {
 	storageFs afero.Fs
 	db        sitesQueries
+	mu        syncmap.Map[string, *sync.Mutex]
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -143,6 +146,19 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	if err != nil {
 		return fmt.Errorf("invalid site: %w", err)
 	}
+
+	key := site + "@" + branch
+
+	// ensure upload mutex is locked
+	actual, _ := h.mu.LoadOrStore(key, new(sync.Mutex))
+	actual.Lock()
+	defer func() {
+		// The mutex is no longer used so delete it here to safe memory in a "lots of
+		// sites" configuration. Delete should happen first to prevent another upload
+		// reusing the mutex.
+		h.mu.Delete(key)
+		actual.Unlock()
+	}()
 
 	siteBranchPath := filepath.Join(site, "@"+branch)
 	siteBranchOldPath := filepath.Join(site, "old@"+branch)
