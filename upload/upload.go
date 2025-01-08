@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 )
 
 var indexBranches = []string{
@@ -29,6 +30,8 @@ var indexBranches = []string{
 
 type uploadQueries interface {
 	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
+	AddBranch(ctx context.Context, arg database.AddBranchParams) error
+	UpdateBranch(ctx context.Context, arg database.UpdateBranchParams) error
 }
 
 func New(storage afero.Fs, db uploadQueries) *Handler {
@@ -164,6 +167,22 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		if err != nil {
 			return fmt.Errorf("failed to copy from archive to output file: '%s': %w", next.Name, err)
 		}
+	}
+
+	n := time.Now().UTC()
+
+	err = h.db.AddBranch(context.Background(), database.AddBranchParams{
+		Branch:     branch,
+		Domain:     site,
+		LastUpdate: n,
+		Enable:     true,
+	})
+	if err != nil {
+		return h.db.UpdateBranch(context.Background(), database.UpdateBranchParams{
+			Branch:     branch,
+			Domain:     site,
+			LastUpdate: n,
+		})
 	}
 	return nil
 }
