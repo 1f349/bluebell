@@ -24,6 +24,10 @@ type apiDB interface {
 func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.Router {
 	router := httprouter.New()
 
+	router.GET("/", func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		http.Error(rw, "Bluebell API Endpoint", http.StatusOK)
+	})
+
 	// Site upload endpoint
 	router.POST("/u/:site/:branch", upload.Handle)
 	router.POST("/u", func(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
