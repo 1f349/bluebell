@@ -16,6 +16,10 @@ func New(hookDir string, sitesDir string) *Hook {
 }
 
 func (h *Hook) Run(site, branch string) error {
+	if h.sitesDir == "" || h.hookDir == "" {
+		return nil
+	}
+
 	sitePath, err := securejoin.SecureJoin(h.sitesDir, site+"/work@"+branch)
 	if err != nil {
 		return err
