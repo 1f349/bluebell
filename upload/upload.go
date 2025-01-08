@@ -180,14 +180,14 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	n := time.Now().UTC()
 
 	err = h.db.AddBranch(context.Background(), database.AddBranchParams{
-		Branch:     branch,
+		Branch:     "@" + branch,
 		Domain:     site,
 		LastUpdate: n,
 		Enable:     true,
 	})
 	if err != nil {
 		return h.db.UpdateBranch(context.Background(), database.UpdateBranchParams{
-			Branch:     branch,
+			Branch:     "@" + branch,
 			Domain:     site,
 			LastUpdate: n,
 		})
