@@ -12,11 +12,26 @@ WHERE domain = ?
   AND enable = true
 LIMIT 1;
 
--- name: AddSiteDomain :exec
+-- name: AddSite :exec
 INSERT INTO sites (domain, token)
 VALUES (?, ?);
 
--- name: SetDomainBranchEnabled :exec
+-- name: UpdateSiteToken :exec
+UPDATE sites
+SET token = ?
+WHERE domain = ?;
+
+-- name: AddBranch :exec
+INSERT INTO branches (domain, branch, last_update, enable)
+VALUES (?, ?, ?, ?);
+
+-- name: UpdateBranch :exec
+UPDATE branches
+SET last_update = ?
+WHERE domain = ?
+  AND branch = ?;
+
+-- name: SetBranchEnabled :exec
 UPDATE branches
 SET enable = ?
 WHERE domain = ?

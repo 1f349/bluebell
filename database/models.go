@@ -9,7 +9,6 @@ import (
 )
 
 type Branch struct {
-	ID         int64     `json:"id"`
 	Domain     string    `json:"domain"`
 	Branch     string    `json:"branch"`
 	LastUpdate time.Time `json:"last_update"`
@@ -17,7 +16,6 @@ type Branch struct {
 }
 
 type Site struct {
-	ID     int64  `json:"id"`
 	Domain string `json:"domain"`
 	Token  string `json:"token"`
 }

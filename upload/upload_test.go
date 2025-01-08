@@ -48,7 +48,6 @@ type fakeUploadDB struct {
 func (f *fakeUploadDB) GetSiteByDomain(_ context.Context, domain string) (database.Site, error) {
 	if domain == "example.com" {
 		return database.Site{
-			ID:     1,
 			Domain: "example.com",
 			Token:  "abcd1234",
 		}, nil

@@ -10,18 +10,40 @@ import (
 	"time"
 )
 
-const addSiteDomain = `-- name: AddSiteDomain :exec
+const addBranch = `-- name: AddBranch :exec
+INSERT INTO branches (domain, branch, last_update, enable)
+VALUES (?, ?, ?, ?)
+`
+
+type AddBranchParams struct {
+	Domain     string    `json:"domain"`
+	Branch     string    `json:"branch"`
+	LastUpdate time.Time `json:"last_update"`
+	Enable     bool      `json:"enable"`
+}
+
+func (q *Queries) AddBranch(ctx context.Context, arg AddBranchParams) error {
+	_, err := q.db.ExecContext(ctx, addBranch,
+		arg.Domain,
+		arg.Branch,
+		arg.LastUpdate,
+		arg.Enable,
+	)
+	return err
+}
+
+const addSite = `-- name: AddSite :exec
 INSERT INTO sites (domain, token)
 VALUES (?, ?)
 `
 
-type AddSiteDomainParams struct {
+type AddSiteParams struct {
 	Domain string `json:"domain"`
 	Token  string `json:"token"`
 }
 
-func (q *Queries) AddSiteDomain(ctx context.Context, arg AddSiteDomainParams) error {
-	_, err := q.db.ExecContext(ctx, addSiteDomain, arg.Domain, arg.Token)
+func (q *Queries) AddSite(ctx context.Context, arg AddSiteParams) error {
+	_, err := q.db.ExecContext(ctx, addSite, arg.Domain, arg.Token)
 	return err
 }
 
@@ -47,7 +69,7 @@ func (q *Queries) GetLastUpdatedByDomainBranch(ctx context.Context, arg GetLastU
 }
 
 const getSiteByDomain = `-- name: GetSiteByDomain :one
-SELECT id, domain, token
+SELECT domain, token
 FROM sites
 WHERE domain = ?
 LIMIT 1
@@ -56,24 +78,58 @@ LIMIT 1
 func (q *Queries) GetSiteByDomain(ctx context.Context, domain string) (Site, error) {
 	row := q.db.QueryRowContext(ctx, getSiteByDomain, domain)
 	var i Site
-	err := row.Scan(&i.ID, &i.Domain, &i.Token)
+	err := row.Scan(&i.Domain, &i.Token)
 	return i, err
 }
 
-const setDomainBranchEnabled = `-- name: SetDomainBranchEnabled :exec
+const setBranchEnabled = `-- name: SetBranchEnabled :exec
 UPDATE branches
 SET enable = ?
 WHERE domain = ?
   AND branch = ?
 `
 
-type SetDomainBranchEnabledParams struct {
+type SetBranchEnabledParams struct {
 	Enable bool   `json:"enable"`
 	Domain string `json:"domain"`
 	Branch string `json:"branch"`
 }
 
-func (q *Queries) SetDomainBranchEnabled(ctx context.Context, arg SetDomainBranchEnabledParams) error {
-	_, err := q.db.ExecContext(ctx, setDomainBranchEnabled, arg.Enable, arg.Domain, arg.Branch)
+func (q *Queries) SetBranchEnabled(ctx context.Context, arg SetBranchEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, setBranchEnabled, arg.Enable, arg.Domain, arg.Branch)
+	return err
+}
+
+const updateBranch = `-- name: UpdateBranch :exec
+UPDATE branches
+SET last_update = ?
+WHERE domain = ?
+  AND branch = ?
+`
+
+type UpdateBranchParams struct {
+	LastUpdate time.Time `json:"last_update"`
+	Domain     string    `json:"domain"`
+	Branch     string    `json:"branch"`
+}
+
+func (q *Queries) UpdateBranch(ctx context.Context, arg UpdateBranchParams) error {
+	_, err := q.db.ExecContext(ctx, updateBranch, arg.LastUpdate, arg.Domain, arg.Branch)
+	return err
+}
+
+const updateSiteToken = `-- name: UpdateSiteToken :exec
+UPDATE sites
+SET token = ?
+WHERE domain = ?
+`
+
+type UpdateSiteTokenParams struct {
+	Token  string `json:"token"`
+	Domain string `json:"domain"`
+}
+
+func (q *Queries) UpdateSiteToken(ctx context.Context, arg UpdateSiteTokenParams) error {
+	_, err := q.db.ExecContext(ctx, updateSiteToken, arg.Token, arg.Domain)
 	return err
 }
