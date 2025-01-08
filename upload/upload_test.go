@@ -53,6 +53,9 @@ func assertUploadedFile(t *testing.T, fs afero.Fs, branch string) {
 	assert.False(t, stat.IsDir())
 	assert.Equal(t, int64(13), stat.Size())
 
+	stat, err = fs.Stat("example.com/work@" + branch + "/test.txt")
+	assert.Error(t, err)
+
 	// check contents
 	o, err := fs.Open("example.com/@" + branch + "/test.txt")
 	assert.NoError(t, err)

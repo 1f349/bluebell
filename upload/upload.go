@@ -113,6 +113,7 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 
 	siteBranchPath := filepath.Join(site, "@"+branch)
 	siteBranchOldPath := filepath.Join(site, "old@"+branch)
+	siteBranchWorkPath := filepath.Join(site, "work@"+branch)
 
 	// try the new "old@[...]" and old "@[...].old" paths
 	err = h.storageFs.RemoveAll(siteBranchPath + ".old")
@@ -124,16 +125,11 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
 
-	err = h.storageFs.Rename(siteBranchPath, siteBranchOldPath)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to save an old copy of the site: %w", err)
-	}
-
-	err = h.storageFs.MkdirAll(siteBranchPath, fs.ModePerm)
+	err = h.storageFs.MkdirAll(siteBranchWorkPath, fs.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to make site directory: %w", err)
 	}
-	branchFs := afero.NewBasePathFs(h.storageFs, siteBranchPath)
+	branchFs := afero.NewBasePathFs(h.storageFs, siteBranchWorkPath)
 
 	// decompress gzip wrapper
 	gzipReader, err := gzip.NewReader(fileData)
@@ -167,6 +163,18 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		if err != nil {
 			return fmt.Errorf("failed to copy from archive to output file: '%s': %w", next.Name, err)
 		}
+	}
+
+	// TODO(melon): I would love to use unix.Renameat2 but due to afero this will not work
+
+	err = h.storageFs.Rename(siteBranchPath, siteBranchOldPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to save an old copy of the site: %w", err)
+	}
+
+	err = h.storageFs.Rename(siteBranchWorkPath, siteBranchPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to save an old copy of the site: %w", err)
 	}
 
 	n := time.Now().UTC()
