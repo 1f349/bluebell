@@ -34,6 +34,7 @@ func setEnabled(rw http.ResponseWriter, req *http.Request, params httprouter.Par
 
 	if !validateDomainOwnershipClaims(host, b.Claims.Perms) {
 		http.Error(rw, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	err := db.SetDomainBranchEnabled(req.Context(), database.SetDomainBranchEnabledParams{
