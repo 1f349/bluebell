@@ -26,6 +26,13 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 
 	// Site upload endpoint
 	router.POST("/u/:site/:branch", upload.Handle)
+	router.POST("/u", func(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+		q := req.URL.Query()
+		upload.Handle(rw, req, httprouter.Params{
+			{"site", q.Get("site")},
+			{"branch", q.Get("branch")},
+		})
+	})
 
 	// Site creation endpoint
 	router.PUT("/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
