@@ -14,15 +14,19 @@ import (
 var migrations embed.FS
 
 func InitDB(p string) (*database.Queries, error) {
-	migDrv, err := iofs.New(migrations, "database/migrations")
-	if err != nil {
-		return nil, err
-	}
 	dbOpen, err := sql.Open("sqlite3", p)
 	if err != nil {
 		return nil, err
 	}
+	return InitRawDB(dbOpen)
+}
+
+func InitRawDB(dbOpen *sql.DB) (*database.Queries, error) {
 	dbDrv, err := sqlite3.WithInstance(dbOpen, &sqlite3.Config{})
+	if err != nil {
+		return nil, err
+	}
+	migDrv, err := iofs.New(migrations, "database/migrations")
 	if err != nil {
 		return nil, err
 	}
