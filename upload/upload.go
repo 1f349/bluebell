@@ -27,11 +27,11 @@ var indexBranches = []string{
 	"master",
 }
 
-type sitesQueries interface {
+type uploadQueries interface {
 	GetSiteByDomain(ctx context.Context, domain string) (database.Site, error)
 }
 
-func New(storage afero.Fs, db sitesQueries) *Handler {
+func New(storage afero.Fs, db uploadQueries) *Handler {
 	return &Handler{storageFs: storage, db: db}
 }
 
@@ -39,7 +39,7 @@ const maxFileSize = 1 * humanize.GiByte
 
 type Handler struct {
 	storageFs afero.Fs
-	db        sitesQueries
+	db        uploadQueries
 	mu        syncmap.Map[string, *sync.Mutex]
 }
 

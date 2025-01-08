@@ -45,17 +45,17 @@ const (
 	NoCacheQuery = "/?__bluebell-no-cache="
 )
 
-type sitesQueries interface {
+type serveQueries interface {
 	GetLastUpdatedByDomainBranch(ctx context.Context, params database.GetLastUpdatedByDomainBranchParams) (time.Time, error)
 }
 
-func New(storage afero.Fs, db sitesQueries) *Handler {
+func New(storage afero.Fs, db serveQueries) *Handler {
 	return &Handler{storage, db}
 }
 
 type Handler struct {
 	storageFs afero.Fs
-	db        sitesQueries
+	db        serveQueries
 }
 
 func cacheBuster(rw http.ResponseWriter, req *http.Request) {
