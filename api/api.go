@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/upload"
+	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/mjwt"
 	"github.com/1f349/mjwt/auth"
 	"github.com/julienschmidt/httprouter"
@@ -31,6 +32,16 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 func setEnabled(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims, db apiDB, enable bool) {
 	host := params.ByName("host")
 	branch := params.ByName("branch")
+
+	if !validation.IsValidSite(host) {
+		http.Error(rw, "Invalid site", http.StatusBadRequest)
+		return
+	}
+
+	if !validation.IsValidBranch(branch) {
+		http.Error(rw, "Invalid branch", http.StatusBadRequest)
+		return
+	}
 
 	if !validateDomainOwnershipClaims(host, b.Claims.Perms) {
 		http.Error(rw, "Forbidden", http.StatusForbidden)
