@@ -16,7 +16,7 @@ func New(hookDir string, sitesDir string) *Hook {
 }
 
 func (h *Hook) Run(site, branch string) error {
-	sitePath, err := securejoin.SecureJoin(h.sitesDir, site+"/@"+branch)
+	sitePath, err := securejoin.SecureJoin(h.sitesDir, site+"/work@"+branch)
 	if err != nil {
 		return err
 	}
