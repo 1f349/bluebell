@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/1f349/bluebell/database"
+	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
@@ -34,8 +35,8 @@ type uploadQueries interface {
 	UpdateBranch(ctx context.Context, arg database.UpdateBranchParams) error
 }
 
-func New(storage afero.Fs, db uploadQueries) *Handler {
-	return &Handler{storageFs: storage, db: db}
+func New(storage afero.Fs, db uploadQueries, hook *hook.Hook) *Handler {
+	return &Handler{storageFs: storage, db: db, postHook: hook}
 }
 
 const maxFileSize = 1 * humanize.GiByte
@@ -44,6 +45,7 @@ type Handler struct {
 	storageFs afero.Fs
 	db        uploadQueries
 	mu        syncmap.Map[string, *sync.Mutex]
+	postHook  *hook.Hook
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -163,6 +165,12 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		if err != nil {
 			return fmt.Errorf("failed to copy from archive to output file: '%s': %w", next.Name, err)
 		}
+	}
+
+	// call the post hook script
+	err = h.postHook.Run(site, branch)
+	if err != nil {
+		return err
 	}
 
 	// TODO(melon): I would love to use unix.Renameat2 but due to afero this will not work

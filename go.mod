@@ -7,6 +7,7 @@ require (
 	github.com/1f349/syncmap v0.0.3
 	github.com/charmbracelet/log v0.4.0
 	github.com/cloudflare/tableflip v1.2.3
+	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/google/uuid v1.6.0

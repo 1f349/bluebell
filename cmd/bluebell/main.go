@@ -7,6 +7,7 @@ import (
 	"github.com/1f349/bluebell"
 	"github.com/1f349/bluebell/api"
 	"github.com/1f349/bluebell/conf"
+	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/logger"
 	"github.com/1f349/bluebell/serve"
 	"github.com/1f349/bluebell/upload"
@@ -69,15 +70,21 @@ func main() {
 
 	wd := filepath.Dir(*configPath)
 	sitesDir := filepath.Join(wd, "sites")
+	sitesPostHookDir := filepath.Join(wd, "hooks/post")
 
 	keyStore, err := mjwt.NewKeyStoreFromPath(filepath.Join(wd, "keystore"))
 	if err != nil {
 		logger.Logger.Fatal("Failed to load MJWT keystore", "dir", filepath.Join(wd, "keystore"), "err", err)
 	}
 
-	_, err = os.Stat(sitesDir)
+	err = os.MkdirAll(sitesDir, 0770)
 	if err != nil {
-		logger.Logger.Fatal("Failed to find sites, does the directory exist? Error: ", err)
+		logger.Logger.Fatal("Failed to find or create sites directory. Error: ", err)
+	}
+
+	err = os.MkdirAll(sitesPostHookDir, 0770)
+	if err != nil {
+		logger.Logger.Fatal("Failed to find or create sites directory. Error: ", err)
 	}
 
 	sitesFs := afero.NewBasePathFs(afero.NewOsFs(), sitesDir)
@@ -112,7 +119,8 @@ func main() {
 	}
 
 	serveHandler := serve.New(sitesFs, db)
-	uploadHandler := upload.New(sitesFs, db)
+	postHook := hook.New(sitesPostHookDir, sitesDir)
+	uploadHandler := upload.New(sitesFs, db, postHook)
 	apiHandler := api.New(uploadHandler, keyStore, db)
 
 	serverHttp := &http.Server{
