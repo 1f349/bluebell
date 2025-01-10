@@ -79,12 +79,12 @@ func main() {
 
 	err = os.MkdirAll(sitesDir, 0770)
 	if err != nil {
-		logger.Logger.Fatal("Failed to find or create sites directory. Error: ", err)
+		logger.Logger.Fatal("Failed to find or create sites directory", "err", err)
 	}
 
 	err = os.MkdirAll(sitesPostHookDir, 0770)
 	if err != nil {
-		logger.Logger.Fatal("Failed to find or create sites directory. Error: ", err)
+		logger.Logger.Fatal("Failed to find or create sites directory", "err", err)
 	}
 
 	sitesFs := afero.NewBasePathFs(afero.NewOsFs(), sitesDir)
