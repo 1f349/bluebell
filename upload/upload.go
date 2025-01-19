@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/hook"
+	"github.com/1f349/bluebell/logger"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
@@ -80,6 +81,7 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 		if errors.Unwrap(err) == nil {
 			http.Error(rw, fmt.Sprintf("Invalid upload: %s", err), http.StatusBadRequest)
 		} else {
+			logger.Logger.Error("Invalid upload", "site", site, "branch", branch, "err", err)
 			http.Error(rw, "Invalid upload: [Internal Server Error]", http.StatusBadRequest)
 		}
 		return
