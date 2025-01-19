@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/hook"
+	"github.com/1f349/bluebell/logger"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
@@ -97,7 +98,7 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 
 	_, err := h.db.GetSiteByDomain(context.Background(), site)
 	if err != nil {
-		return fmt.Errorf("invalid site: %w", err)
+		return userSafeErrorf("invalid site: %w", err)
 	}
 
 	key := site + "@" + branch
@@ -120,23 +121,23 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	// try the new "old@[...]" and old "@[...].old" paths
 	err = h.storageFs.RemoveAll(siteBranchPath + ".old")
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
+		return userSafeErrorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
 	err = h.storageFs.RemoveAll(siteBranchOldPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to remove old site branch %s: %w", siteBranchPath, err)
+		return userSafeErrorf("failed to remove old site branch %s: %w", siteBranchPath, err)
 	}
 
 	err = h.storageFs.MkdirAll(siteBranchWorkPath, fs.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to make site directory: %w", err)
+		return userSafeErrorf("failed to make site directory: %w", err)
 	}
 	branchFs := afero.NewBasePathFs(h.storageFs, siteBranchWorkPath)
 
 	// decompress gzip wrapper
 	gzipReader, err := gzip.NewReader(fileData)
 	if err != nil {
-		return fmt.Errorf("invalid gzip file: %w", err)
+		return userSafeErrorf("invalid gzip file: %w", err)
 	}
 
 	// parse tar encoding
@@ -148,22 +149,26 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("invalid tar archive: %w", err)
+			return userSafeErrorf("invalid tar archive: %w", err)
 		}
 
 		err = branchFs.MkdirAll(filepath.Dir(next.Name), fs.ModePerm)
 		if err != nil {
-			return fmt.Errorf("failed to make directory tree: %w", err)
+			return userSafeErrorf("failed to make directory tree: %w", err)
+		}
+
+		if next.FileInfo().IsDir() {
+			continue
 		}
 
 		create, err := branchFs.Create(next.Name)
 		if err != nil {
-			return fmt.Errorf("failed to create output file: '%s': %w", next.Name, err)
+			return userSafeErrorf("failed to create output file: '%s': %w", next.Name, err)
 		}
 
 		_, err = io.Copy(create, tarReader)
 		if err != nil {
-			return fmt.Errorf("failed to copy from archive to output file: '%s': %w", next.Name, err)
+			return userSafeErrorf("failed to copy from archive to output file: '%s': %w", next.Name, err)
 		}
 	}
 
@@ -177,12 +182,12 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 
 	err = h.storageFs.Rename(siteBranchPath, siteBranchOldPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to save an old copy of the site: %w", err)
+		return userSafeErrorf("failed to save an old copy of the site: %w", err)
 	}
 
 	err = h.storageFs.Rename(siteBranchWorkPath, siteBranchPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to save an old copy of the site: %w", err)
+		return userSafeErrorf("failed to save an old copy of the site: %w", err)
 	}
 
 	n := time.Now().UTC()
@@ -201,4 +206,17 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		})
 	}
 	return nil
+}
+
+func userSafeErrorf(format string, args ...any) error {
+	logger.Logger.Helper()
+	logger.Logger.Error(fmt.Errorf(format, args))
+
+	for i := range args {
+		if _, ok := args[i].(error); ok {
+			args[i] = "[Internal Server Error]"
+		}
+	}
+
+	return fmt.Errorf(format, args)
 }
