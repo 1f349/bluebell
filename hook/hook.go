@@ -2,6 +2,7 @@ package hook
 
 import (
 	"github.com/cyphar/filepath-securejoin"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -28,6 +29,16 @@ func (h *Hook) Run(site, branch string) error {
 	if err != nil {
 		return err
 	}
+
+	// check if the script exists before failing to execute
+	_, err = os.Stat(scriptPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
 	cmd := exec.Cmd{
 		Path: scriptPath,
 		Args: []string{filepath.Base(scriptPath)},
