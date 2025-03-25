@@ -5,7 +5,7 @@ func IsValidSite(site string) bool {
 		return false
 	}
 	return containsOnly(site, func(r rune) bool {
-		return isAlphanumericOrDash(r) || r == '.'
+		return isDomainRune(r) || r == '_'
 	})
 }
 
@@ -21,23 +21,12 @@ func IsValidBranch(branch string) bool {
 		return false
 	}
 	return containsOnly(branch, func(r rune) bool {
-		return isAlphanumericOrDash(r) || r == '/' || r == '.'
+		return isDomainRune(r) || (r >= 'A' && r <= 'Z') || r == '_' || r == '/'
 	})
 }
 
-func isAlphanumericOrDash(r rune) bool {
-	switch {
-	case r >= '0' && r <= '9':
-		return true
-	case r >= 'a' && r <= 'z':
-		return true
-	case r >= 'A' && r <= 'Z':
-		return true
-	case r == '-', r == '_':
-		return true
-	default:
-		return false
-	}
+func isDomainRune(r rune) bool {
+	return (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || r == '-' || r == '.'
 }
 
 func containsOnly(s string, f func(r rune) bool) bool {
