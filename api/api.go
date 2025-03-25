@@ -39,7 +39,7 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	})
 
 	// Site creation endpoint
-	router.PUT("/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.PUT("/api/v1/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		host := params.ByName("host")
 
 		if !validation.IsValidSite(host) {
@@ -74,7 +74,7 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	}))
 
 	// Reset site token endpoint
-	router.POST("/sites/:host/reset-token", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.POST("/api/v1/sites/:host/reset-token", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		host := params.ByName("host")
 
 		if !validation.IsValidSite(host) {
@@ -109,10 +109,10 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	}))
 
 	// Enable/disable site branch
-	router.PUT("/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.PUT("/api/v1/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		setEnabled(rw, req, params, b, db, true)
 	}))
-	router.DELETE("/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.DELETE("/api/v1/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		setEnabled(rw, req, params, b, db, false)
 	}))
 
