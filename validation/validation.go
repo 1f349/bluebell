@@ -4,10 +4,6 @@ func IsValidSite(site string) bool {
 	if len(site) < 1 || site[0] == '-' {
 		return false
 	}
-	switch site[0] {
-	case '-':
-		return false
-	}
 	return containsOnly(site, func(r rune) bool {
 		return isAlphanumericOrDash(r) || r == '.'
 	})
