@@ -152,12 +152,12 @@ func setEnabled(rw http.ResponseWriter, req *http.Request, params httprouter.Par
 }
 
 func generateToken() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
+	var b [32]byte
+	_, err := rand.Read(b[:])
 	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+	return hex.EncodeToString(b[:]), nil
 }
 
 // apiError outputs a generic JSON error message
