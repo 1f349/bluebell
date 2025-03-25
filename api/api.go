@@ -16,6 +16,7 @@ import (
 )
 
 type apiDB interface {
+	GetBranchesByHost(ctx context.Context, arg database.GetBranchesByHostParams) ([]database.Branch, error)
 	AddSite(ctx context.Context, arg database.AddSiteParams) error
 	UpdateSiteToken(ctx context.Context, arg database.UpdateSiteTokenParams) error
 	SetBranchEnabled(ctx context.Context, arg database.SetBranchEnabledParams) error
@@ -37,6 +38,33 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 			{"branch", q.Get("branch")},
 		})
 	})
+
+	// Site lookup endpoint
+	router.GET("/api/v1/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+		host := params.ByName("host")
+
+		if !validation.IsValidHost(host) {
+			http.Error(rw, "Invalid host", http.StatusBadRequest)
+			return
+		}
+
+		if !validateDomainOwnershipClaims(host, b.Claims.Perms) {
+			http.Error(rw, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		branches, err := db.GetBranchesByHost(req.Context(), database.GetBranchesByHostParams{
+			Domain:         host,
+			DomainWildcard: "%." + host,
+		})
+		if err != nil {
+			http.Error(rw, "Failed to fetch sites", http.StatusInternalServerError)
+			return
+		}
+
+		rw.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(rw).Encode(branches)
+	}))
 
 	// Site creation endpoint
 	router.PUT("/api/v1/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {

@@ -1,5 +1,27 @@
 package validation
 
+import "strings"
+
+// IsValidHost ensures a host string is valid.
+//
+// - Each rune must match 0-9, a-z, "-" or ".".
+// - Hosts are separated by "." into segments and each segment must not be empty.
+// - Naturally this also ensures the host does not start or end with ".".
+// - Host segments must not start or end with "-".
+func IsValidHost(domain string) bool {
+	if !containsOnly(domain, isDomainRune) {
+		return false
+	}
+
+	segments := strings.Split(domain, ".")
+	for _, segment := range segments {
+		if segment == "" || strings.HasPrefix(segment, "-") || strings.HasSuffix(segment, "-") {
+			return false
+		}
+	}
+	return true
+}
+
 func IsValidSite(site string) bool {
 	if len(site) < 1 || site[0] == '-' {
 		return false

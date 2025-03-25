@@ -4,6 +4,12 @@ FROM sites
 WHERE domain = ?
 LIMIT 1;
 
+-- name: GetBranchesByHost :many
+SELECT *
+FROM branches
+WHERE domain = ?
+   OR domain LIKE @domain_wildcard;
+
 -- name: GetLastUpdatedByDomainBranch :one
 SELECT last_update
 FROM branches

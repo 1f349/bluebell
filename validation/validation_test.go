@@ -5,6 +5,35 @@ import (
 	"testing"
 )
 
+func TestIsValidHost(t *testing.T) {
+	for _, i := range []struct {
+		s     string
+		valid bool
+	}{
+		{"example.com", true},
+		{"example.org", true},
+		{"foobar.example.com", true},
+		{"foobar.example.com_", false},
+		{"foobar.example.com[", false},
+		{"foobar.example.com]", false},
+		{"foobar.example.com<", false},
+		{"foobar.example.com/", false},
+		{"foobar.example.com?", false},
+		{"foobar.example.com@", false},
+		{"foobar.example.com!", false},
+		{"foobar.example..com", false},
+		{"foobar.example-.com", false},
+		{"foobar.-example.com", false},
+		{"-foobar.example.com", false},
+		{"foobar.example.com-", false},
+		{"foobar..example..com", false},
+		{".example.com", false},
+		{"example.com.", false},
+	} {
+		assert.Equal(t, i.valid, IsValidHost(i.s), "Test failed \"%s\" - %v", i.s, i.valid)
+	}
+}
+
 func TestIsValidSite(t *testing.T) {
 	for _, i := range []struct {
 		s     string
