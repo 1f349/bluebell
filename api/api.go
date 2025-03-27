@@ -62,8 +62,13 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 			return
 		}
 
+		domains := make(map[string][]database.Branch)
+		for _, i := range branches {
+			domains[i.Domain] = append(domains[i.Domain], i)
+		}
+
 		rw.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(rw).Encode(branches)
+		_ = json.NewEncoder(rw).Encode(domains)
 	}))
 
 	// Site creation endpoint
