@@ -67,8 +67,21 @@ func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 			domains[i.Domain] = append(domains[i.Domain], i)
 		}
 
+		type domainObject struct {
+			Domain   string            `json:"domain"`
+			Branches []database.Branch `json:"branches"`
+		}
+
+		domainObjs := make([]domainObject, 0, len(domains))
+		for k, v := range domains {
+			domainObjs = append(domainObjs, domainObject{
+				Domain:   k,
+				Branches: v,
+			})
+		}
+
 		rw.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(rw).Encode(domains)
+		_ = json.NewEncoder(rw).Encode(domainObjs)
 	}))
 
 	// Site creation endpoint
