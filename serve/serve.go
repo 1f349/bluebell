@@ -38,9 +38,10 @@ func isInvalidIndexPath(p string) bool {
 }
 
 const (
-	BetaCookieName = "__bluebell-site-beta"
-	BetaSwitchPath = "/__bluebell-switch-beta"
-	BetaExpiry     = 24 * time.Hour
+	BetaCookieName       = "__bluebell-site-beta"
+	BetaSwitchQuery      = "__bluebell-switch-beta"
+	BetaSwitchResetQuery = "__bluebell-reset-beta"
+	BetaExpiry           = 24 * time.Hour
 
 	NoCacheQuery = "/?__bluebell-no-cache="
 )
@@ -72,28 +73,28 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		host = req.Host
 	}
 
+	q := req.URL.Query()
+
+	// init cookie
+	baseCookie := &http.Cookie{
+		Name:     BetaCookieName,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	// reset beta
+	if q.Has(BetaSwitchResetQuery) {
+		baseCookie.MaxAge = -1
+		http.SetCookie(rw, baseCookie)
+		cacheBuster(rw, req)
+		return
+	}
+
 	// detect beta switch path
-	if req.URL.Path == BetaSwitchPath {
-		q := req.URL.Query()
-
-		// init cookie
-		baseCookie := &http.Cookie{
-			Name:     BetaCookieName,
-			Path:     "/",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		}
-
-		// reset beta
-		if q.Has("reset") {
-			baseCookie.MaxAge = -1
-			http.SetCookie(rw, baseCookie)
-			cacheBuster(rw, req)
-			return
-		}
-
+	if q.Has(BetaSwitchQuery) {
 		// set beta branch
-		baseCookie.Value = q.Get("branch")
+		baseCookie.Value = q.Get(BetaSwitchQuery)
 		baseCookie.Expires = time.Now().Add(BetaExpiry)
 		http.SetCookie(rw, baseCookie)
 		cacheBuster(rw, req)
