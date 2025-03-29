@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/1f349/bluebell/database"
-	"github.com/1f349/bluebell/upload"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/mjwt"
 	"github.com/1f349/mjwt/auth"
@@ -22,7 +21,11 @@ type apiDB interface {
 	SetBranchEnabled(ctx context.Context, arg database.SetBranchEnabledParams) error
 }
 
-func New(upload *upload.Handler, keyStore *mjwt.KeyStore, db apiDB) *httprouter.Router {
+type uploadInterface interface {
+	Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params)
+}
+
+func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.Router {
 	router := httprouter.New()
 
 	router.GET("/", func(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
