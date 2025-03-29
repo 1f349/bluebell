@@ -44,6 +44,30 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			serveTest(t, "example.com/hello-world", branch, "example.com/@"+branch+"/hello-world/index.html")
 			serveTest(t, "example.com/hello-world", branch, "example.com/@"+branch+"/hello-world")
 		})
+
+		t.Run("switch to "+branch+" branch", func(t *testing.T) {
+			h := New(afero.NewMemMapFs(), &fakeServeDB{})
+
+			req := httptest.NewRequest(http.MethodGet, httpPrefix+"example.com/?__bluebell-switch-beta="+branch, nil)
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+
+			res := rec.Result()
+			assert.Equal(t, http.StatusFound, rec.Code)
+			assert.NotNil(t, res.Body)
+			all, err := io.ReadAll(res.Body)
+			assert.NoError(t, err)
+			assert.Contains(t, string(all), "<a href=\"/?__bluebell-no-cache=")
+			assert.Contains(t, string(all), "\">Found</a>.\n\n")
+
+			cookies := res.Cookies()
+			assert.Len(t, cookies, 1)
+			assert.Equal(t, cookies[0].Name, "__bluebell-site-beta")
+			assert.Equal(t, cookies[0].Value, branch)
+			assert.Equal(t, cookies[0].Path, "/")
+			assert.Equal(t, cookies[0].HttpOnly, true)
+			assert.Equal(t, cookies[0].SameSite, http.SameSiteLaxMode)
+		})
 	}
 }
 
