@@ -53,7 +53,7 @@ func serveTest(t *testing.T, address string, branch string, name string) {
 
 		//goland:noinspection HttpUrlsUsage
 		const httpPrefix = "http://"
-		req := httptest.NewRequest(http.MethodPost, httpPrefix+address, nil)
+		req := httptest.NewRequest(http.MethodGet, httpPrefix+address, nil)
 		if branch != "" {
 			req.AddCookie(&http.Cookie{
 				Name:  "__bluebell-site-beta",
