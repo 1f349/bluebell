@@ -26,6 +26,9 @@ type fakeServeDB struct {
 	branch string
 }
 
+//goland:noinspection HttpUrlsUsage
+const httpPrefix = "http://"
+
 func (f *fakeServeDB) GetLastUpdatedByDomainBranch(_ context.Context, params database.GetLastUpdatedByDomainBranchParams) (time.Time, error) {
 	if params.Domain == "example.com" && params.Branch == "@"+f.branch {
 		return time.Now(), nil
@@ -51,8 +54,6 @@ func serveTest(t *testing.T, address string, branch string, name string) {
 		assert.NoError(t, afero.WriteFile(fs, name, []byte("Hello World\n"), 0666))
 		h := New(fs, &fakeServeDB{branch: branch})
 
-		//goland:noinspection HttpUrlsUsage
-		const httpPrefix = "http://"
 		req := httptest.NewRequest(http.MethodGet, httpPrefix+address, nil)
 		if branch != "" {
 			req.AddCookie(&http.Cookie{
