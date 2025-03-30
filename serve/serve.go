@@ -43,7 +43,7 @@ const (
 	BetaSwitchResetQuery = "__bluebell-reset-beta"
 	BetaExpiry           = 24 * time.Hour
 
-	NoCacheQuery = "/?__bluebell-no-cache="
+	NoCacheQuery = "__bluebell-no-cache"
 )
 
 type serveQueries interface {
@@ -60,11 +60,17 @@ type Handler struct {
 }
 
 func cacheBuster(rw http.ResponseWriter, req *http.Request) {
+	q := req.URL.Query()
+	q.Del(BetaSwitchQuery)
+	q.Del(BetaSwitchResetQuery)
+	q.Set(NoCacheQuery, strconv.FormatInt(time.Now().Unix(), 16))
+	req.URL.RawQuery = q.Encode()
+
 	header := rw.Header()
 	header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	header.Set("Pragma", "no-cache")
 	header.Set("Expires", "0")
-	http.Redirect(rw, req, NoCacheQuery+strconv.FormatInt(time.Now().Unix(), 16), http.StatusFound)
+	http.Redirect(rw, req, req.URL.RequestURI(), http.StatusFound)
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

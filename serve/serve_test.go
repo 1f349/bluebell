@@ -46,7 +46,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		})
 
 		for _, testPath := range []string{"/", "/posts/test", "/this-is-definitely-a-page-that-I-really-need-to-view-right-now"} {
-			t.Run("switch to "+branch+" branch", func(t *testing.T) {
+			t.Run("switch to "+branch+" branch - "+testPath, func(t *testing.T) {
 				h := New(afero.NewMemMapFs(), &fakeServeDB{})
 
 				req := httptest.NewRequest(http.MethodGet, httpPrefix+"example.com"+testPath+"?__bluebell-switch-beta="+branch, nil)
@@ -58,8 +58,18 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				assert.NotNil(t, res.Body)
 				all, err := io.ReadAll(res.Body)
 				assert.NoError(t, err)
-				assert.Contains(t, string(all), "<a href=\"/?__bluebell-no-cache=")
+				assert.Contains(t, string(all), "<a href=\""+testPath+"?__bluebell-no-cache=")
 				assert.Contains(t, string(all), "\">Found</a>.\n\n")
+
+				location, err := res.Location()
+				if err != nil {
+					return
+				}
+				assert.Equal(t, testPath, location.Path)
+				q := location.Query()
+				assert.True(t, q.Has("__bluebell-no-cache"))
+				assert.False(t, q.Has("__bluebell-switch-beta"))
+				assert.False(t, q.Has("__bluebell-reset-beta"))
 
 				cookies := res.Cookies()
 				assert.Len(t, cookies, 1)
