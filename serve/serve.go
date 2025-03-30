@@ -74,7 +74,10 @@ func cacheBuster(rw http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
+	switch req.Method {
+	case http.MethodGet, http.MethodHead:
+		break
+	default:
 		http.Error(rw, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
