@@ -169,6 +169,8 @@ func (h *Handler) tryServeFile(rw http.ResponseWriter, req *http.Request, site, 
 	open, err := h.storageFs.Open(servePath)
 	switch {
 	case err == nil:
+		defer open.Close()
+
 		// ignore directories
 		stat, err := open.Stat()
 		if err != nil || stat.IsDir() {
