@@ -108,3 +108,17 @@ func serveTest(t *testing.T, address string, branch string, name string) {
 		assert.Equal(t, "Hello World\n", string(all))
 	})
 }
+
+func TestContainsPathTraversal(t *testing.T) {
+	for _, i := range []struct {
+		Source string
+		Result bool
+	}{
+		{"this/is/a/normal/path.html", false},
+		{"this/is../a/normal/path.html", false},
+		{"this/is/a/..normal/path.html", false},
+		{"this/is/a/../bad/path.html", true},
+	} {
+		assert.Equal(t, i.Result, containsPathTraversal(i.Source))
+	}
+}

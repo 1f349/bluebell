@@ -162,7 +162,7 @@ func (h *Handler) tryServePath(rw http.ResponseWriter, req *http.Request, site, 
 // If branch == "@" then time based caching is enabled for subsequent page loads. Otherwise, time based caching is disabled to prevent stale beta content from being cached.
 func (h *Handler) tryServeFile(rw http.ResponseWriter, req *http.Request, site, branch string, updated time.Time, p string) bool {
 	// prevent path traversal
-	if strings.Contains(site, "..") || strings.Contains(branch, "..") || strings.Contains(p, "..") {
+	if containsPathTraversal(site) || containsPathTraversal(branch) || containsPathTraversal(p) {
 		http.Error(rw, "400 Bad Request", http.StatusBadRequest)
 		return true
 	}
@@ -193,3 +193,17 @@ func (h *Handler) tryServeFile(rw http.ResponseWriter, req *http.Request, site, 
 	}
 	return true
 }
+
+func containsPathTraversal(p string) bool {
+	if !strings.Contains(p, "..") {
+		return false
+	}
+	for _, ent := range strings.FieldsFunc(p, isSlashRune) {
+		if ent == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func isSlashRune(r rune) bool { return r == '/' || r == '\\' }
