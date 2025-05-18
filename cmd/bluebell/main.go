@@ -71,6 +71,7 @@ func main() {
 
 	wd := filepath.Dir(*configPath)
 	sitesDir := filepath.Join(wd, "sites")
+	uploadsDir := filepath.Join(wd, "uploads")
 	sitesPostHookDir := filepath.Join(wd, "hooks/post")
 
 	keyStore, err := mjwt.NewKeyStoreFromPath(filepath.Join(wd, "keystore"))
@@ -88,7 +89,13 @@ func main() {
 		logger.Logger.Fatal("Failed to find or create sites directory", "err", err)
 	}
 
+	err = os.MkdirAll(uploadsDir, 0770)
+	if err != nil {
+		logger.Logger.Fatal("Failed to find or create uploads directory", "err", err)
+	}
+
 	sitesFs := afero.NewBasePathFs(afero.NewOsFs(), sitesDir)
+	uploadsFs := afero.NewBasePathFs(afero.NewOsFs(), uploadsDir)
 
 	// Do an upgrade on SIGHUP
 	go func() {
@@ -126,7 +133,7 @@ func main() {
 
 	serveHandler := serve.New(sitesFs, db)
 	postHook := hook.New(sitesPostHookDir, sitesDir)
-	uploadHandler := upload.New(sitesFs, db, postHook, peerManager)
+	uploadHandler := upload.New(sitesFs, uploadsFs, db, postHook, peerManager)
 	apiHandler := api.New(uploadHandler, keyStore, db)
 
 	serverHttp := &http.Server{

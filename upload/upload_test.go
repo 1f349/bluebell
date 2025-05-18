@@ -118,7 +118,8 @@ func (f *fakeUploadDB) UpdateBranch(ctx context.Context, arg database.UpdateBran
 
 func TestHandler_Handle(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	h := New(fs, new(fakeUploadDB), hook.New("", ""), nil)
+	uploadFs := afero.NewMemMapFs()
+	h := New(fs, uploadFs, new(fakeUploadDB), hook.New("", ""), nil)
 
 	r := httprouter.New()
 	r.POST("/u/:site/*branch", h.Handle)
@@ -169,9 +170,10 @@ func extractTarGzUploadTest(t *testing.T, db uploadQueries) {
 	for _, branch := range []string{"main", "test", "dev"} {
 		t.Run(branch+" branch", func(t *testing.T) {
 			fs := afero.NewMemMapFs()
-			h := New(fs, db, hook.New("", ""), nil)
+			uploadFs := afero.NewMemMapFs()
+			h := New(fs, uploadFs, db, hook.New("", ""), nil)
 			buffer := bytes.NewBuffer(testArchiveTarGz)
-			assert.NoError(t, h.extractTarGzUpload(buffer, "example.com", branch))
+			assert.NoError(t, h.extractTarGzUpload(buffer, int64(buffer.Len()), "example.com", branch))
 
 			assertUploadedFile(t, fs, branch)
 		})
@@ -189,7 +191,8 @@ func TestHandler_extractTarGzUpload_memoryDB_multiple(t *testing.T) {
 
 func extractTarGzUploadMultipleTest(t *testing.T, db uploadQueries) {
 	fs := afero.NewMemMapFs()
-	h := New(fs, db, hook.New("", ""), nil)
+	uploadFs := afero.NewMemMapFs()
+	h := New(fs, uploadFs, db, hook.New("", ""), nil)
 	sig := new(atomic.Bool)
 	wg := new(sync.WaitGroup)
 
@@ -200,7 +203,7 @@ func extractTarGzUploadMultipleTest(t *testing.T, db uploadQueries) {
 		go func() {
 			defer wg.Done()
 			buffer := newSingleBufferReader(testArchiveTarGz, sig)
-			assert.NoError(t, h.extractTarGzUpload(buffer, "example.com", "main"))
+			assert.NoError(t, h.extractTarGzUpload(buffer, int64(len(testArchiveTarGz)), "example.com", "main"))
 			assertUploadedFile(t, fs, "main")
 		}()
 	}

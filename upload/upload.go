@@ -37,17 +37,27 @@ type uploadQueries interface {
 	UpdateBranch(ctx context.Context, arg database.UpdateBranchParams) error
 }
 
-func New(storage afero.Fs, db uploadQueries, hook *hook.Hook, peerManager *peers.Peers) *Handler {
-	return &Handler{storageFs: storage, db: db, postHook: hook}
+func New(storage afero.Fs, uploadsFs afero.Fs, db uploadQueries, hook *hook.Hook, peerManager *peers.Peers) *Handler {
+	return &Handler{
+		storageFs:   storage,
+		objectStore: NewObjectStore(afero.NewBasePathFs(uploadsFs, "objects")),
+		uploadsFs:   uploadsFs,
+		db:          db,
+		postHook:    hook,
+		peerManager: peerManager,
+	}
 }
 
 const maxFileSize = 1 * humanize.GiByte
 
 type Handler struct {
-	storageFs afero.Fs
-	db        uploadQueries
-	mu        syncmap.Map[string, *sync.Mutex]
-	postHook  *hook.Hook
+	storageFs   afero.Fs
+	objectStore *ObjectStore
+	uploadsFs   afero.Fs
+	db          uploadQueries
+	mu          syncmap.Map[string, *sync.Mutex]
+	postHook    *hook.Hook
+	peerManager *peers.Peers
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -77,7 +87,7 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 		return
 	}
 
-	err = h.extractTarGzUpload(fileData, site, branch)
+	err = h.extractTarGzUpload(fileData, fileHeader.Size, site, branch)
 	if err != nil {
 		if errors.Unwrap(err) == nil {
 			http.Error(rw, fmt.Sprintf("Invalid upload: %s", err), http.StatusBadRequest)
@@ -88,10 +98,12 @@ func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httpr
 		return
 	}
 
+	// The file is known to be valid, we should share with peers now
+
 	rw.WriteHeader(http.StatusAccepted)
 }
 
-func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) error {
+func (h *Handler) extractTarGzUpload(fileData io.Reader, size int64, site, branch string) error {
 	if !validation.IsValidSite(site) {
 		return fmt.Errorf("invalid site name: %s", site)
 	}
@@ -113,12 +125,25 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	actual, _ := h.mu.LoadOrStore(key, new(sync.Mutex))
 	actual.Lock()
 	defer func() {
-		// The mutex is no longer used so delete it here to safe memory in a "lots of
+		// The mutex is no longer used, so delete it here to safe memory in a "lots of
 		// sites" configuration. Delete should happen first to prevent another upload
 		// reusing the mutex.
 		h.mu.Delete(key)
 		actual.Unlock()
 	}()
+
+	uploadReader := io.LimitReader(fileData, size)
+
+	// add the original tar.gz to the upload object store
+	fileHash, err := h.objectStore.AddReader(uploadReader)
+	if err != nil {
+		return err
+	}
+
+	createdObjectFile, err := h.objectStore.Open(fileHash)
+	if err != nil {
+		return err
+	}
 
 	siteBranchPath := filepath.Join(site, "@"+branch)
 	siteBranchOldPath := filepath.Join(site, "old@"+branch)
@@ -141,7 +166,7 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 	branchFs := afero.NewBasePathFs(h.storageFs, siteBranchWorkPath)
 
 	// decompress gzip wrapper
-	gzipReader, err := gzip.NewReader(fileData)
+	gzipReader, err := gzip.NewReader(createdObjectFile)
 	if err != nil {
 		return fmt.Errorf("invalid gzip file: %w", err)
 	}
@@ -178,7 +203,7 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, site, branch string) er
 		}
 	}
 
-	// call the post hook script
+	// call the post-hook script
 	err = h.postHook.Run(site, branch)
 	if err != nil {
 		return err
