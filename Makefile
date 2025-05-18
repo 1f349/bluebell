@@ -1,3 +1,5 @@
+.PHONY: all sqlc
+
 PROTOC := $(shell which protoc)
 
 PROTO_SRC_DIR := proto/src
@@ -6,7 +8,10 @@ PROTO_FILES := $(wildcard $(PROTO_SRC_DIR)/*.proto)
 
 .PHONY: all protobuf
 
-all: protobuf
+all: sqlc protobuf
+
+sqlc:
+	sqlc generate
 
 protobuf: $(PROTO_FILES)
 	@echo "Generating Go code from .proto files..."
