@@ -10,6 +10,7 @@ import (
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/logger"
+	"github.com/1f349/bluebell/peers"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
@@ -36,7 +37,7 @@ type uploadQueries interface {
 	UpdateBranch(ctx context.Context, arg database.UpdateBranchParams) error
 }
 
-func New(storage afero.Fs, db uploadQueries, hook *hook.Hook) *Handler {
+func New(storage afero.Fs, db uploadQueries, hook *hook.Hook, peerManager *peers.Peers) *Handler {
 	return &Handler{storageFs: storage, db: db, postHook: hook}
 }
 

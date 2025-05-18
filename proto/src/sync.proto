@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package sync;
+option go_package = "/sync";
+
+import "google/protobuf/timestamp.proto";
+
+service Sync {
+  rpc Notify (NotifyRequest) returns (NotifyResponse);
+}
+
+message NotifyRequest {
+  string domain = 1;
+  string branch = 2;
+  google.protobuf.Timestamp upload_timestamp = 3;
+}
+
+message NotifyResponse {
+  bytes public_key = 1;
+}

@@ -3,6 +3,7 @@ module github.com/1f349/bluebell
 go 1.24.1
 
 require (
+	github.com/1f349/cache v0.0.7
 	github.com/1f349/mjwt v0.4.1
 	github.com/1f349/syncmap v0.0.3
 	github.com/charmbracelet/log v0.4.2

@@ -9,6 +9,7 @@ import (
 	"github.com/1f349/bluebell/conf"
 	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/logger"
+	"github.com/1f349/bluebell/peers"
 	"github.com/1f349/bluebell/serve"
 	"github.com/1f349/bluebell/upload"
 	"github.com/1f349/mjwt"
@@ -118,9 +119,14 @@ func main() {
 		logger.Logger.Fatal("Listen failed", "err", err)
 	}
 
+	peerManager, err := peers.New(wd)
+	if err != nil {
+		logger.Logger.Fatal("Failed to load peer manager", "err", err)
+	}
+
 	serveHandler := serve.New(sitesFs, db)
 	postHook := hook.New(sitesPostHookDir, sitesDir)
-	uploadHandler := upload.New(sitesFs, db, postHook)
+	uploadHandler := upload.New(sitesFs, db, postHook, peerManager)
 	apiHandler := api.New(uploadHandler, keyStore, db)
 
 	serverHttp := &http.Server{
