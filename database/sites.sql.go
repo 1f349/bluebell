@@ -48,7 +48,7 @@ func (q *Queries) AddSite(ctx context.Context, arg AddSiteParams) error {
 }
 
 const getBranchesByHost = `-- name: GetBranchesByHost :many
-SELECT domain, branch, last_update, enable
+SELECT domain, branch, last_update, enable, archive
 FROM branches
 WHERE domain = ?
    OR domain LIKE ?
@@ -73,6 +73,7 @@ func (q *Queries) GetBranchesByHost(ctx context.Context, arg GetBranchesByHostPa
 			&i.Branch,
 			&i.LastUpdate,
 			&i.Enable,
+			&i.Archive,
 		); err != nil {
 			return nil, err
 		}
@@ -120,6 +121,17 @@ func (q *Queries) GetSiteByDomain(ctx context.Context, domain string) (Site, err
 	var i Site
 	err := row.Scan(&i.Domain, &i.Token)
 	return i, err
+}
+
+const isArchiveObjectUsed = `-- name: IsArchiveObjectUsed :exec
+SELECT 1
+FROM branches
+WHERE archive = ?
+`
+
+func (q *Queries) IsArchiveObjectUsed(ctx context.Context, archive string) error {
+	_, err := q.db.ExecContext(ctx, isArchiveObjectUsed, archive)
+	return err
 }
 
 const setBranchEnabled = `-- name: SetBranchEnabled :exec

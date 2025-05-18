@@ -42,3 +42,8 @@ UPDATE branches
 SET enable = ?
 WHERE domain = ?
   AND branch = ?;
+
+-- name: IsArchiveObjectUsed :exec
+SELECT 1
+FROM branches
+WHERE archive = ?;

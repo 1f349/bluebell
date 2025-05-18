@@ -1,0 +1,2 @@
+ALTER TABLE branches
+  ADD COLUMN archive TEXT NOT NULL DEFAULT '';

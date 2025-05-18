@@ -13,6 +13,7 @@ type Branch struct {
 	Branch     string    `json:"branch"`
 	LastUpdate time.Time `json:"last_update"`
 	Enable     bool      `json:"enable"`
+	Archive    string    `json:"archive"`
 }
 
 type Site struct {
