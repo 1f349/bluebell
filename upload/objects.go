@@ -54,8 +54,6 @@ func (o *ObjectStore) writeTempFile(r io.Reader) (string, error) {
 func (o *ObjectStore) AddReader(r io.Reader) (Hash, error) {
 	h := sha256.New()
 
-	fmt.Println("AddReader")
-
 	// write to hash as well
 	r = io.TeeReader(r, h)
 
@@ -64,12 +62,9 @@ func (o *ObjectStore) AddReader(r io.Reader) (Hash, error) {
 		logger.Logger.Error("Failed to create temp file", "err", err)
 		return Hash{}, err
 	}
-	fmt.Println(o.dir)
 
 	objName := Hash(h.Sum(nil))
 	objPath := objName.ObjectPath()
-	fmt.Println(objPath)
-	fmt.Println(tempFileName)
 
 	err = o.dir.MkdirAll(filepath.Dir(objPath), 0700)
 	if err != nil {
