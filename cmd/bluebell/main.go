@@ -73,6 +73,7 @@ func main() {
 	sitesDir := filepath.Join(wd, "sites")
 	uploadsDir := filepath.Join(wd, "uploads")
 	sitesPostHookDir := filepath.Join(wd, "hooks/post")
+	peersDir := filepath.Join(wd, "peers")
 
 	keyStore, err := mjwt.NewKeyStoreFromPath(filepath.Join(wd, "keystore"))
 	if err != nil {
@@ -94,8 +95,19 @@ func main() {
 		logger.Logger.Fatal("Failed to find or create uploads directory", "err", err)
 	}
 
+	err = os.MkdirAll(uploadsDir, 0770)
+	if err != nil {
+		logger.Logger.Fatal("Failed to find or create uploads directory", "err", err)
+	}
+
+	err = os.MkdirAll(peersDir, 0770)
+	if err != nil {
+		logger.Logger.Fatal("Failed to find or create peers directory", "err", err)
+	}
+
 	sitesFs := afero.NewBasePathFs(afero.NewOsFs(), sitesDir)
 	uploadsFs := afero.NewBasePathFs(afero.NewOsFs(), uploadsDir)
+	peersFs := afero.NewBasePathFs(afero.NewOsFs(), peersDir)
 
 	// Do an upgrade on SIGHUP
 	go func() {
@@ -126,7 +138,7 @@ func main() {
 		logger.Logger.Fatal("Listen failed", "err", err)
 	}
 
-	peerManager, err := peers.New(wd)
+	peerManager, err := peers.New(peersFs)
 	if err != nil {
 		logger.Logger.Fatal("Failed to load peer manager", "err", err)
 	}
