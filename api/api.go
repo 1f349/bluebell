@@ -5,13 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
+
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/mjwt"
 	"github.com/1f349/mjwt/auth"
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/net/publicsuffix"
-	"net/http"
 )
 
 type apiDB interface {
@@ -43,7 +44,7 @@ func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	})
 
 	// Site lookup endpoint
-	router.GET("/api/v1/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.GET("/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		host := params.ByName("host")
 
 		if !validation.IsValidHost(host) {
@@ -88,7 +89,7 @@ func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	}))
 
 	// Site creation endpoint
-	router.PUT("/api/v1/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.PUT("/sites/:host", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		host := params.ByName("host")
 
 		if !validation.IsValidSite(host) {
@@ -123,7 +124,7 @@ func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	}))
 
 	// Reset site token endpoint
-	router.POST("/api/v1/sites/:host/reset-token", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.POST("/sites/:host/reset-token", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		host := params.ByName("host")
 
 		if !validation.IsValidSite(host) {
@@ -158,10 +159,10 @@ func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	}))
 
 	// Enable/disable site branch
-	router.PUT("/api/v1/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.PUT("/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		setEnabled(rw, req, params, b, db, true)
 	}))
-	router.DELETE("/api/v1/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
+	router.DELETE("/sites/:host/:branch/enable", checkAuth(keyStore, func(rw http.ResponseWriter, req *http.Request, params httprouter.Params, b AuthClaims) {
 		setEnabled(rw, req, params, b, db, false)
 	}))
 
