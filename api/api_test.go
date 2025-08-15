@@ -2,6 +2,11 @@ package api
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/mjwt"
 	"github.com/1f349/mjwt/auth"
@@ -9,10 +14,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 func TestApi(t *testing.T) {
@@ -59,10 +60,10 @@ func TestApi(t *testing.T) {
 		assert.Equal(t, "fakeUpload.Handle called\n", rec.Body.String())
 	})
 
-	t.Run("GET /api/v1/sites/example.com", func(t *testing.T) {
+	t.Run("GET /sites/example.com", func(t *testing.T) {
 		t.Run("Invalid", func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/sites/example.com", nil)
+			req := httptest.NewRequest(http.MethodGet, "/sites/example.com", nil)
 			req.Header.Set("Authorization", "Bearer "+invalidToken)
 			mux.ServeHTTP(rec, req)
 			assert.Equal(t, http.StatusForbidden, rec.Code)
@@ -70,7 +71,7 @@ func TestApi(t *testing.T) {
 		})
 		t.Run("Valid", func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/sites/example.com", nil)
+			req := httptest.NewRequest(http.MethodGet, "/sites/example.com", nil)
 			req.Header.Set("Authorization", "Bearer "+validToken)
 			mux.ServeHTTP(rec, req)
 			assert.Equal(t, http.StatusOK, rec.Code)
