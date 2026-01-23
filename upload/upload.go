@@ -51,7 +51,7 @@ type Handler struct {
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	site := params.ByName("site")
-	branch := params.ByName("branch")
+	branch := strings.TrimPrefix(params.ByName("branch"), "/")
 
 	siteConf, err := h.db.GetSiteByDomain(req.Context(), site)
 	if err != nil {

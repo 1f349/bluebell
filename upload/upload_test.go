@@ -121,12 +121,12 @@ func TestHandler_Handle(t *testing.T) {
 	h := New(fs, new(fakeUploadDB), hook.New("", ""))
 
 	r := httprouter.New()
-	r.POST("/u/:site/:branch", h.Handle)
+	r.POST("/u/:site/*branch", h.Handle)
 	r.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		panic("Not Found")
 	})
 
-	for _, branch := range []string{"main", "test", "dev"} {
+	for _, branch := range []string{"main", "test", "dev", "fix/with-slash"} {
 		t.Run(branch+" branch", func(t *testing.T) {
 			mpBuf := new(bytes.Buffer)
 			mp := multipart.NewWriter(mpBuf)

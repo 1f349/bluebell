@@ -34,7 +34,7 @@ func New(upload uploadInterface, keyStore *mjwt.KeyStore, db apiDB) *httprouter.
 	})
 
 	// Site upload endpoint
-	router.POST("/u/:site/:branch", upload.Handle)
+	router.POST("/u/:site/*branch", upload.Handle)
 	router.POST("/u", func(rw http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		q := req.URL.Query()
 		upload.Handle(rw, req, httprouter.Params{
