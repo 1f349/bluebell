@@ -228,12 +228,14 @@ func (h *Handler) extractTarGzUpload(fileData io.Reader, size int64, site, branc
 		Domain:     site,
 		LastUpdate: n,
 		Enable:     true,
+		Archive:    fileHash.String(),
 	})
 	if err != nil {
 		return h.db.UpdateBranch(context.Background(), database.UpdateBranchParams{
 			Branch:     "@" + branch,
 			Domain:     site,
 			LastUpdate: n,
+			Archive:    fileHash.String(),
 		})
 	}
 	return nil

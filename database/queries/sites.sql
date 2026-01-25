@@ -28,12 +28,13 @@ SET token = ?
 WHERE domain = ?;
 
 -- name: AddBranch :exec
-INSERT INTO branches (domain, branch, last_update, enable)
-VALUES (?, ?, ?, ?);
+INSERT INTO branches (domain, branch, last_update, enable, archive)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: UpdateBranch :exec
 UPDATE branches
-SET last_update = ?
+SET last_update = ?,
+    archive=?
 WHERE domain = ?
   AND branch = ?;
 
