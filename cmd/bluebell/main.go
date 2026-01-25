@@ -9,7 +9,6 @@ import (
 	"github.com/1f349/bluebell/conf"
 	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/logger"
-	"github.com/1f349/bluebell/peers"
 	"github.com/1f349/bluebell/serve"
 	"github.com/1f349/bluebell/upload"
 	"github.com/1f349/mjwt"
@@ -107,7 +106,6 @@ func main() {
 
 	sitesFs := afero.NewBasePathFs(afero.NewOsFs(), sitesDir)
 	uploadsFs := afero.NewBasePathFs(afero.NewOsFs(), uploadsDir)
-	peersFs := afero.NewBasePathFs(afero.NewOsFs(), peersDir)
 
 	// Do an upgrade on SIGHUP
 	go func() {
@@ -138,14 +136,9 @@ func main() {
 		logger.Logger.Fatal("Listen failed", "err", err)
 	}
 
-	peerManager, err := peers.New(peersFs)
-	if err != nil {
-		logger.Logger.Fatal("Failed to load peer manager", "err", err)
-	}
-
 	serveHandler := serve.New(sitesFs, db)
 	postHook := hook.New(sitesPostHookDir, sitesDir)
-	uploadHandler := upload.New(sitesFs, uploadsFs, db, postHook, peerManager)
+	uploadHandler := upload.New(sitesFs, uploadsFs, db, postHook)
 	apiHandler := api.New(uploadHandler, keyStore, db)
 
 	serverHttp := &http.Server{

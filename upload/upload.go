@@ -10,7 +10,6 @@ import (
 	"github.com/1f349/bluebell/database"
 	"github.com/1f349/bluebell/hook"
 	"github.com/1f349/bluebell/logger"
-	"github.com/1f349/bluebell/peers"
 	"github.com/1f349/bluebell/validation"
 	"github.com/1f349/syncmap"
 	"github.com/dustin/go-humanize"
@@ -37,14 +36,13 @@ type uploadQueries interface {
 	UpdateBranch(ctx context.Context, arg database.UpdateBranchParams) error
 }
 
-func New(storage afero.Fs, uploadsFs afero.Fs, db uploadQueries, hook *hook.Hook, peerManager *peers.Peers) *Handler {
+func New(storage afero.Fs, uploadsFs afero.Fs, db uploadQueries, hook *hook.Hook) *Handler {
 	return &Handler{
 		storageFs:   storage,
 		objectStore: NewObjectStore(afero.NewBasePathFs(uploadsFs, "objects")),
 		uploadsFs:   uploadsFs,
 		db:          db,
 		postHook:    hook,
-		peerManager: peerManager,
 	}
 }
 
@@ -57,7 +55,6 @@ type Handler struct {
 	db          uploadQueries
 	mu          syncmap.Map[string, *sync.Mutex]
 	postHook    *hook.Hook
-	peerManager *peers.Peers
 }
 
 func (h *Handler) Handle(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
