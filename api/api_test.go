@@ -75,7 +75,7 @@ func TestApi(t *testing.T) {
 			req.Header.Set("Authorization", "Bearer "+validToken)
 			mux.ServeHTTP(rec, req)
 			assert.Equal(t, http.StatusOK, rec.Code)
-			assert.Equal(t, "[{\"domain\":\"example.com\",\"branches\":[{\"domain\":\"example.com\",\"branch\":\"test\",\"last_update\":\"2000-02-08T01:02:03Z\",\"enable\":true}]}]\n", rec.Body.String())
+			assert.Equal(t, "[{\"domain\":\"example.com\",\"branches\":[{\"domain\":\"example.com\",\"branch\":\"test\",\"last_update\":\"2000-02-08T01:02:03Z\",\"enable\":true,\"archive\":\"\"}]}]\n", rec.Body.String())
 		})
 	})
 }
