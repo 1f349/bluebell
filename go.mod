@@ -1,6 +1,6 @@
 module github.com/1f349/bluebell
 
-go 1.24.1
+go 1.26
 
 require (
 	github.com/1f349/mjwt v0.4.1

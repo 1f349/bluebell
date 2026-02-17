@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -198,12 +199,7 @@ func containsPathTraversal(p string) bool {
 	if !strings.Contains(p, "..") {
 		return false
 	}
-	for _, ent := range strings.FieldsFunc(p, isSlashRune) {
-		if ent == ".." {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(strings.FieldsFunc(p, isSlashRune), "..")
 }
 
 func isSlashRune(r rune) bool { return r == '/' || r == '\\' }

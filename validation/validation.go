@@ -13,8 +13,8 @@ func IsValidHost(domain string) bool {
 		return false
 	}
 
-	segments := strings.Split(domain, ".")
-	for _, segment := range segments {
+	segments := strings.SplitSeq(domain, ".")
+	for segment := range segments {
 		if segment == "" || strings.HasPrefix(segment, "-") || strings.HasSuffix(segment, "-") {
 			return false
 		}
